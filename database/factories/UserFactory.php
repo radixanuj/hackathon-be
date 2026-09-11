@@ -19,20 +19,60 @@ class UserFactory extends Factory
 
     public const LOCATIONS = ['Mumbai', 'Pune', 'Bengaluru', 'Dubai', 'London', 'Remote'];
 
+    /**
+     * Titles in the shape the real roster uses - "Rank - Department".
+     *
+     * Faker's jobTitle() hands back things like "Gluing Machine Operator", which
+     * reads as obvious filler next to seventy exported colleagues, and the team
+     * derivation downstream has nothing to do with it.
+     */
+    public const JOB_TITLES = [
+        'Senior Associate - Software Development Engineering',
+        'Manager - Software Development Engineering',
+        'Senior Specialist - Data Analytics',
+        'Specialist - Digital Marketing',
+        'Senior Manager - Strategic Partnerships',
+        'Associate Director - Brand Marketing',
+        'Senior Associate - Technical Support',
+        'Manager - People Success',
+        'Specialist - Visual Design',
+        'Senior Specialist - Financial Strategy & Business Analysis',
+    ];
+
+    /**
+     * Intros in the register a colleague actually writes in.
+     *
+     * The intro is quoted on Home, under every name in the mentoring list, and at
+     * the top of the profile modal - a lorem sentence there is the first thing a
+     * viewer reads and the loudest possible tell that nothing here is real.
+     */
+    public const INTROS = [
+        'Mostly backend, mostly the parts nobody volunteers for. Ask me before you add another queue.',
+        'I spend my week between the data and the creative, translating one into the other.',
+        'Came up through the work before managing it, so I am still close enough to be useful in a review.',
+        'Happy to talk to anyone about anything, including plenty outside my job description.',
+        'I build the reporting most teams open on a Monday. If a number looks wrong, it is probably mine.',
+        'Reasonably new here, so mostly asking questions and writing down the answers.',
+        'Most of what I do is unblocking other people, which is a better use of me than anything else.',
+        'I care a great deal about type and spacing and have accepted this is not universal.',
+        'Six years of talking to customers on their worst day. I know where the product confuses people.',
+        'Come to me with the half-formed version — I would rather see it early than polished and wrong.',
+    ];
+
     public function definition(): array
     {
         return [
-            'name' => fake()->name(),
+            'name' => fake()->firstName().' '.fake()->lastName(),
             'email' => fake()->unique()->safeEmail(),
             'email_verified_at' => now(),
             'password' => static::$password ??= Hash::make(config('radix.demo_login.password', 'Radix123')),
             'remember_token' => Str::random(10),
-            'job_title' => fake()->jobTitle(),
+            'job_title' => fake()->randomElement(self::JOB_TITLES),
             'team' => fake()->randomElement(self::TEAMS),
             'location' => fake()->randomElement(self::LOCATIONS),
             'timezone' => 'Asia/Kolkata',
             'joined_at' => fake()->dateTimeBetween('-11 years', '-1 month')->format('Y-m-d'),
-            'intro' => fake()->sentence(14),
+            'intro' => fake()->randomElement(self::INTROS),
             'avatar_url' => null,
             'role' => 'employee',
             'is_active' => true,

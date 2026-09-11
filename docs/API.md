@@ -7,16 +7,37 @@ collection of all 129 endpoints (Phase 1 + Phase 2). Log in once and the token i
 
 ## Signing in (demo mode)
 
-The sign-in screen asks for a **name** and one **shared password** — no per-user credentials.
+The sign-in screen asks who you are and one **shared password** — no per-user credentials.
+
+Typing in the name box searches the roster, and you pick yourself out of the results:
+
+```http
+GET /api/v1/auth/directory?q=kh
+{ "data": [ { "id": 39, "name": "Sahar Khan", "job_title": "…", "team": "…", "location": "…" } ] }
+```
+
+Then sign in as the person you picked:
 
 ```http
 POST /api/v1/auth/demo-login
-{ "name": "Anuj Maurya", "password": "Radix123" }
+{ "user_id": 39, "password": "Radix123" }
 ```
 
-It returns the same `{ data: { token, user } }` shape as a real login, so nothing downstream knows the
-difference. An unrecognised name creates a profile on the spot, along with its New Joiner Quest, so anyone
-can sign in and land somewhere useful. `Anuj Maurya` is the seeded admin.
+Sending a `user_id` is what the screen does, so "Sahar Khan" and "Saif Khan" can never be confused for
+one another. A `name` is still accepted instead, and an unrecognised one creates a profile on the spot
+along with its New Joiner Quest — so someone the roster has never heard of can still get in:
+
+```http
+POST /api/v1/auth/demo-login
+{ "name": "Brand New", "password": "Radix123" }
+```
+
+Either way it returns the same `{ data: { token, user } }` shape as a real login, so nothing downstream
+knows the difference. `Anuj Maurya` is the seeded admin.
+
+`/auth/directory` is unauthenticated by necessity — it is read before anyone has a token — so it is
+deliberately thin: id, name, job title, team and location, capped at ten results, active people only.
+No email or contact details. It returns 404 whenever demo sign-in is disabled.
 
 Real `POST /auth/register` and `POST /auth/login` are untouched and still work — seeded accounts use
 `Radix123` as their password.
@@ -25,7 +46,7 @@ Controlled by `config/radix.php`:
 
 | Env var | Default | Effect |
 |---|---|---|
-| `DEMO_LOGIN_ENABLED` | `true` | `false` makes `/auth/demo-login` return 404, leaving only real auth |
+| `DEMO_LOGIN_ENABLED` | `true` | `false` makes `/auth/demo-login` and `/auth/directory` return 404, leaving only real auth |
 | `DEMO_LOGIN_PASSWORD` | `Radix123` | The shared password |
 | `DEMO_LOGIN_AUTO_CREATE` | `true` | `false` rejects unknown names instead of creating a profile |
 
@@ -379,7 +400,8 @@ The full catalogue of types lives in `App\Models\Notification::TYPES`, and `/met
 
 | Method | Endpoint | Notes |
 |---|---|---|
-| `POST` | `/auth/demo-login` | Name + shared password — see above |
+| `POST` | `/auth/demo-login` | `user_id` (or `name`) + shared password — see above |
+| `GET` | `/auth/directory` | `?q=` — the roster the sign-in name box searches. No token required |
 | `POST` | `/auth/register` | Returns a token; also builds the New Joiner Quest |
 | `POST` | `/auth/login` | Email + password |
 | `GET` | `/auth/me` | Current user with all tag sections |

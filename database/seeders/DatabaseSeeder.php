@@ -21,12 +21,19 @@ use App\Models\User;
 use App\Services\BlindMeetupMatcher;
 use App\Services\BuddyMatcher;
 use App\Services\QuestBuilder;
-use Database\Factories\UserFactory;
-use Illuminate\Database\Eloquent\Factories\Sequence;
 use Illuminate\Database\Seeder;
+use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Str;
 
-/** Seeds a believable Radix for demoing every Phase 1 pillar. */
+/**
+ * Seeds a believable Radix for demoing every Phase 1 pillar.
+ *
+ * Every string this file writes is copy somebody could plausibly have typed into
+ * the product. Faker's lorem generators are deliberately absent: a demo where the
+ * stories, answers and descriptions are Latin filler tells a viewer nothing about
+ * what the screen is for, and the body copy is most of what these screens are.
+ * Where a row needs prose, the prose is written out next to the row it belongs to.
+ */
 class DatabaseSeeder extends Seeder
 {
     protected const SKILLS = [
@@ -40,6 +47,59 @@ class DatabaseSeeder extends Seeder
         'Gaming', 'Cooking', 'Chess', 'Cycling', 'Music', 'Board Games', 'Travel',
     ];
 
+    /**
+     * The skills each team plausibly carries.
+     *
+     * Handing everybody three skills at random is the same failure as lorem copy,
+     * one level down: it puts Kubernetes on a Finance director, routes Ask Radix
+     * to the wrong people, and fills "who can talk about Negotiation" with names
+     * that make no sense. Drawing from the team's own column keeps the expertise
+     * sections readable for the forty-odd colleagues the skills export misses.
+     */
+    protected const TEAM_SKILLS = [
+        'Engineering' => ['Laravel', 'React', 'Kubernetes', 'Data Modelling', 'BigQuery'],
+        'Data' => ['BigQuery', 'Data Modelling', 'Product Discovery', 'Financial Modelling'],
+        'Design' => ['Figma', 'Product Discovery', 'Customer Interviews', 'Copywriting'],
+        'Marketing' => ['SEO', 'Copywriting', 'Public Speaking', 'Customer Interviews', 'Domain Strategy'],
+        'Partnerships' => ['Negotiation', 'Domain Strategy', 'Public Speaking', 'Customer Interviews'],
+        'Finance' => ['Financial Modelling', 'Negotiation', 'Data Modelling'],
+        'People' => ['Hiring', 'Managing First Time', 'Public Speaking', 'Negotiation'],
+        'Support' => ['Customer Interviews', 'Domain Strategy', 'Public Speaking'],
+        'Programs' => ['Product Discovery', 'Public Speaking', 'Managing First Time'],
+        'Operations' => ['Data Modelling', 'Negotiation', 'Managing First Time'],
+        'Trust & Safety' => ['Domain Strategy', 'Negotiation', 'Data Modelling'],
+        'Leadership' => ['Hiring', 'Negotiation', 'Domain Strategy', 'Financial Modelling'],
+        'Advisory' => ['Hiring', 'Negotiation', 'Public Speaking'],
+    ];
+
+    protected const DEFAULT_SKILLS = ['Public Speaking', 'Product Discovery', 'Customer Interviews'];
+
+    /** Ranks where managing people is part of the job, and so part of the profile. */
+    protected const MANAGING_RANKS = ['manager', 'director', 'vice president', 'chief'];
+
+    /**
+     * Colleagues outside Mumbai.
+     *
+     * The org-chart export is a single office, and Cross-location Buddy only pairs
+     * people from different ones - so without these nobody matches and the pillar
+     * demos as an empty state. Written out rather than generated: a faker name with
+     * a faker job title reads as noise next to seventy real colleagues.
+     */
+    protected const ELSEWHERE = [
+        ['Rasha Al Mansoori', 'Senior Manager - Strategic Partnerships', 'Partnerships', 'Dubai',
+            'Eight years in domains, five of them on the registrar side before I switched. Ask me about partner negotiations, or about anything to do with the Gulf market.'],
+        ['Omar Haddad', 'Specialist - Digital Marketing', 'Marketing', 'Dubai',
+            'I run paid acquisition for the MENA region. Spend most of my day in dashboards arguing with attribution. Cricket obsessive, badly.'],
+        ['Eleanor Whitfield', 'Director - Brand Management & Strategy', 'Marketing', 'London',
+            'Came from agency side, which means I am still slightly amazed that we can ship something the week we decide on it. Happy to look at any piece of writing before it goes out.'],
+        ['Tom Bexley', 'Senior Associate - Software Development Engineering', 'Engineering', 'London',
+            'Mostly on the registry integrations. Two years in and I still find new edge cases in EPP. Ask me about Go, or about which pub does a decent roast.'],
+        ['Divya Raghavan', 'Senior Specialist - Data Analytics', 'Data', 'Bengaluru',
+            'I own most of the reporting layer, so if a number looks wrong somewhere it is probably my fault and I would like to know. Learning to play the veena, slowly.'],
+        ['Karthik Menon', 'Manager - Technical Support', 'Support', 'Bengaluru',
+            'Six years of talking to registrars on their worst day. I know where the product genuinely confuses people, and I am always happy to walk a team through it.'],
+    ];
+
     public function run(): void
     {
         $skills = collect(self::SKILLS)->map(fn ($n) => Tag::findOrCreateByName($n, 'skill'));
@@ -48,25 +108,31 @@ class DatabaseSeeder extends Seeder
         // The real roster, so every pillar below is populated by actual colleagues.
         $this->call(EmployeeSeeder::class);
 
-        // The export is one office, but Cross-location Buddy only pairs people from
-        // different ones - a few colleagues elsewhere keep that pillar demoable.
-        User::factory()->count(6)->state(new Sequence(
-            ['location' => 'Mumbai'],
-            ['location' => 'Dubai'],
-        ))->create();
+        $this->seedColleaguesElsewhere();
 
         $everyone = User::query()->get();
         $newJoiners = $everyone->filter(fn (User $u) => $u->isNewJoiner());
 
         // Profiles: the four sections that answer "why talk to this person?"
         $everyone->each(function (User $user) use ($skills, $interests) {
-            $this->attach($user, $skills->random(3), 'can_talk_about');
-            $this->attach($user, $skills->random(2), 'can_help_with');
-            $this->attach($user, $skills->random(2), 'want_to_learn');
+            $theirs = $this->skillsFor($user, $skills);
+
+            $this->attach($user, $theirs->take(3), 'can_talk_about');
+            $this->attach($user, $theirs->take(2), 'can_help_with');
+            // Deliberately from outside their own column: wanting to learn the thing
+            // you already do all day is the one combination that reads as generated.
+            $this->attach($user, $skills->reject(fn (Tag $t) => $theirs->contains('id', $t->id))->random(2), 'want_to_learn');
             $this->attach($user, $interests->random(3), 'interest');
         });
 
+        // Real skills where we have them, replacing the random pair of expertise
+        // sections above. Before the usage counts are totted up, not after.
+        $this->call(SkillSeeder::class);
+
         Tag::all()->each(fn (Tag $tag) => $tag->update(['usage_count' => $tag->users()->count()]));
+
+        // Profiles now have their tags, so an intro can be written around them.
+        $this->call(ProfileIntroSeeder::class);
 
         // New Joiner Quest for everyone who just arrived.
         $builder = app(QuestBuilder::class);
@@ -89,13 +155,69 @@ class DatabaseSeeder extends Seeder
         $this->seedOpenInvites($everyone);
         $this->tagStories($interests);
 
+        // Everything above picks its hosts and authors at random, which regularly
+        // leaves the admin account - the one the docs hand out and the one a demo
+        // signs in as - with an empty bell, an empty Me page and nothing of their
+        // own on any tab. Before the notifications are backfilled, put them in it.
+        $this->seedDemoAccountActivity($everyone);
+
         // Last: everything above writes models directly rather than going through
         // the controllers, so nothing has raised a notification yet.
         $this->call(NotificationSeeder::class);
     }
 
+    /** The handful of non-Mumbai colleagues every cross-office feature needs. */
+    protected function seedColleaguesElsewhere(): void
+    {
+        $password = Hash::make(config('radix.demo_login.password', 'Radix123'));
+
+        foreach (self::ELSEWHERE as $index => [$name, $title, $team, $location, $intro]) {
+            $user = User::firstOrNew(['email' => Str::slug($name).'@radix.email']);
+
+            $user->fill([
+                'name' => $name,
+                'job_title' => $title,
+                'team' => $team,
+                'location' => $location,
+                'timezone' => match ($location) {
+                    'Dubai' => 'Asia/Dubai',
+                    'London' => 'Europe/London',
+                    default => 'Asia/Kolkata',
+                },
+                'role' => 'employee',
+                'is_active' => true,
+            ]);
+
+            if (! $user->exists) {
+                $user->fill([
+                    'password' => $password,
+                    'email_verified_at' => now(),
+                    'remember_token' => Str::random(10),
+                    'intro' => $intro,
+                    // Tenure spread across the group rather than random, so the Blind
+                    // Meetup senior/junior split has both halves here too.
+                    'joined_at' => now()->subDays(400 + $index * 470)->toDateString(),
+                    'open_to_mentoring' => $index % 3 !== 2,
+                    'open_to_blind_meetups' => true,
+                ]);
+            }
+
+            $user->save();
+        }
+    }
+
     protected function seedBuddies($everyone): void
     {
+        $notes = [
+            'Happy to talk to anyone, ideally someone nowhere near my team.',
+            'Usually free after 6pm IST, but I can do early if that helps the time zones.',
+            'Would love someone on the commercial side — I only ever talk to engineers.',
+            'Fairly new here, so mostly curious what everyone else actually does all day.',
+            'No preferences at all. Surprise me.',
+            'Second time doing this. The first one turned into a standing monthly call.',
+            null,
+        ];
+
         // The matcher only pairs people from different offices, and the roster is mostly
         // one - so build the pool per office instead of at random, or nobody matches.
         $pool = $everyone->filter(fn (User $u) => $u->location)
@@ -103,8 +225,11 @@ class DatabaseSeeder extends Seeder
             ->flatMap(fn ($colleagues) => $colleagues->shuffle()->take(3))
             ->shuffle();
 
-        foreach ($pool as $user) {
-            BuddySignup::updateOrCreate(['user_id' => $user->id], ['status' => 'waiting']);
+        foreach ($pool as $index => $user) {
+            BuddySignup::updateOrCreate(
+                ['user_id' => $user->id],
+                ['status' => 'waiting', 'note' => $notes[$index % count($notes)]],
+            );
         }
 
         $matcher = app(BuddyMatcher::class);
@@ -116,7 +241,24 @@ class DatabaseSeeder extends Seeder
 
     protected function seedOfficeHours($everyone): void
     {
+        // What people actually book half an hour with a senior colleague to talk about.
+        $topics = [
+            'Career paths after four years in the same role',
+            'How to say no to a stakeholder without burning the relationship down',
+            'Would you look at a deck before I take it to leadership?',
+            'Whether to go deeper in my specialism or broaden out from here',
+            'Moving from Support into Data — is that realistic?',
+            'A teammate who misses every deadline, and what I do about it',
+            'What the first ninety days managing a team should look like',
+            'Writing for an audience that is not engineers',
+            'How you decide what not to work on',
+            'Preparing for my first performance conversation as the manager',
+            'Making the case for an extra headcount',
+            'No agenda, honestly — I just wanted to say hello.',
+        ];
+
         $hosts = $everyone->where('open_to_mentoring', true)->shuffle()->take(6);
+        $next = 0;
 
         foreach ($hosts as $host) {
             foreach ([3, 10] as $daysOut) {
@@ -131,10 +273,12 @@ class DatabaseSeeder extends Seeder
                 ]);
 
                 $everyone->whereNotIn('id', [$host->id])->random(rand(0, 2))
-                    ->each(fn (User $u) => $slot->bookings()->firstOrCreate(
-                        ['user_id' => $u->id],
-                        ['topic' => fake()->sentence(5)],
-                    ));
+                    ->each(function (User $u) use ($slot, $topics, &$next) {
+                        $slot->bookings()->firstOrCreate(
+                            ['user_id' => $u->id],
+                            ['topic' => $topics[$next++ % count($topics)]],
+                        );
+                    });
 
                 $slot->syncBookingsCount();
             }
@@ -143,18 +287,25 @@ class DatabaseSeeder extends Seeder
 
     protected function seedCoffeeInvites($everyone): void
     {
+        $notes = [
+            'coffee' => 'Free after standup and in need of a flat white. Anyone want to join?',
+            'lunch' => 'Trying the new place downstairs before the queue discovers it.',
+            'walk' => 'Need to walk off a long morning. Twenty minutes, nothing strenuous.',
+        ];
+
+        $extra = [
+            'coffee' => 'Happy to talk shop or not at all. Genuinely do not mind which.',
+            'lunch' => 'I will get there at 1 and grab a table. No agenda, just food.',
+            'walk' => 'Down to the seafront and back if the weather holds.',
+        ];
+
         foreach (['coffee', 'lunch', 'walk', 'coffee', 'lunch'] as $index => $kind) {
             $host = $everyone->random();
 
             $invite = CoffeeInvite::create([
                 'host_id' => $host->id,
                 'kind' => $kind,
-                'note' => fake()->randomElement([
-                    'Free after standup, anyone want to join?',
-                    'Trying the new place downstairs.',
-                    'Need to walk off a long morning.',
-                    'Happy to talk shop or not at all.',
-                ]),
+                'note' => $index < 3 ? $notes[$kind] : $extra[$kind],
                 'starts_at' => now()->addDays($index + 1)->setTime(rand(9, 15), 30),
                 'location' => $host->location,
                 'capacity' => rand(2, 4),
@@ -174,6 +325,40 @@ class DatabaseSeeder extends Seeder
             ['Read Three Books', 'reading', 'books', 3, 'Any three books before the month is out.'],
             ['Photo a Day', 'photography', 'photos', 30, 'One photo a day, no filters required.'],
             ['Ten Thousand Steps', 'sports', 'days', 20, 'Twenty days of hitting ten thousand steps.'],
+        ];
+
+        // What somebody types into the "note" box when they log a day. Short, and
+        // specific to the challenge - a generic line under every entry reads as filler.
+        $notes = [
+            'running' => [
+                'Powai lake loop before work.',
+                'Treadmill. Raining again.',
+                'Slow one, legs still sore from Sunday.',
+                'Marine Drive at 6am. Worth the alarm.',
+                'Half of this was walking. Counting it anyway.',
+                'Ran to the station and gave up on the train.',
+            ],
+            'reading' => [
+                'Finished it on the train, nearly missed my stop.',
+                'Two chapters before bed.',
+                'Gave up on this one at page 80. Starting another.',
+                'Much better than the cover suggests.',
+                'Read the whole thing on a flight.',
+            ],
+            'photography' => [
+                'Golden hour off the balcony.',
+                'Street shot near Kala Ghoda.',
+                'Phone only today.',
+                'Nothing good came out of this one. Posting it regardless.',
+                'The neighbour\'s cat, for the fourth time.',
+            ],
+            'sports' => [
+                'Walked to the station and back instead of the rickshaw.',
+                'Hit ten thousand by lunch for once.',
+                'Airport day. Easy target.',
+                'Scraped it at 11pm pacing the living room.',
+                'Long walk after dinner, no excuses needed.',
+            ],
         ];
 
         foreach ($challenges as [$title, $category, $unit, $goal, $description]) {
@@ -199,7 +384,7 @@ class DatabaseSeeder extends Seeder
                 foreach (range(1, rand(0, 5)) as $n) {
                     $participant->logs()->create([
                         'value' => rand(1, max(2, (int) ($goal / 4))),
-                        'note' => fake()->boolean(40) ? fake()->sentence(4) : null,
+                        'note' => fake()->boolean(40) ? fake()->randomElement($notes[$category]) : null,
                         'logged_on' => now()->subDays(rand(0, 9))->toDateString(),
                     ]);
                 }
@@ -213,15 +398,62 @@ class DatabaseSeeder extends Seeder
 
     protected function seedAskRadix($everyone, $skills): void
     {
+        // Each question carries the answers it got. A real answer is the whole point
+        // of the screen - it is what tells you the pillar works.
         $questions = [
-            ['Has anyone worked with BigQuery ML?', 'Trying to decide if it is worth it for a churn model.', ['BigQuery', 'Data Modelling']],
-            ['Anyone travelled to Japan recently?', 'Two weeks in spring, mostly trains. Any advice welcome.', ['Travel']],
-            ['Looking for advice on managing someone for the first time', 'Starting next month and slightly terrified.', ['Managing First Time', 'Hiring']],
-            ['Best way to run a customer interview?', 'Never done one properly and I have five booked.', ['Customer Interviews']],
-            ['Anyone set up Kubernetes autoscaling here?', 'Specifically the cost side of it.', ['Kubernetes']],
+            [
+                'Has anyone worked with BigQuery ML?',
+                'Trying to decide if it is worth it for a churn model.',
+                ['BigQuery', 'Data Modelling'],
+                [
+                    'We used it for a propensity model last year. For a first churn model it is genuinely good — you get something working in an afternoon without moving data out of the warehouse. Where it fell down for us was iteration: the moment you want custom features and proper cross-validation you end up fighting the SQL. My rule now is BigQuery ML to prove the signal exists, then move it out if it turns out to matter.',
+                    'Check your slot usage before you commit to it. Training is billed differently from queries and our first serious run was an unpleasant surprise on the monthly bill. Happy to share the actual numbers if that helps you make the case.',
+                ],
+                'I have run three of these. Grab thirty minutes and I will save you the first two weeks.',
+            ],
+            [
+                'Anyone travelled to Japan recently?',
+                'Two weeks in spring, mostly trains. Any advice welcome.',
+                ['Travel'],
+                [
+                    'Went in April. Two things I would do differently: book the Ghibli Museum the day tickets open rather than the week before, and skip the nationwide rail pass unless you are really covering ground — the maths stopped working for us after the price rise, and regional passes came out cheaper.',
+                    'Set up a Suica on your phone before you land and you will never queue at a ticket machine. Also: most of the food worth eating has no English sign and no website. Walk into the small ones with six seats.',
+                ],
+                'Did three weeks there last year and kept a spreadsheet of everything. Yours if you want it.',
+            ],
+            [
+                'Looking for advice on managing someone for the first time',
+                'Starting next month and slightly terrified.',
+                ['Managing First Time', 'Hiring'],
+                [
+                    'The thing nobody told me: your job is now to be boring and predictable. Same one-on-one, same day, same three questions, never cancelled. That reliability builds more trust in the first three months than any clever coaching will.',
+                    'Write down what good looks like for them over the first month and actually show it to them. Half the anxiety on both sides is two people quietly guessing where the bar is.',
+                ],
+                'Made every mistake available in my first year of this. Happy to talk through any of them.',
+            ],
+            [
+                'Best way to run a customer interview?',
+                'Never done one properly and I have five booked.',
+                ['Customer Interviews'],
+                [
+                    'Ask about the last time they did the thing, never what they would do in general. "Tell me about the last time you registered a domain" gets you a story with detail in it; "would you use this feature" gets you a polite lie.',
+                    'Record them, and do not take notes while they are talking. You will catch three things on the replay that you missed in the room. And stop talking — count to five before you fill a silence, because that is usually when the useful part arrives.',
+                ],
+                'I can sit in on the first one and take notes so you can just listen. Offer stands.',
+            ],
+            [
+                'Anyone set up Kubernetes autoscaling here?',
+                'Specifically the cost side of it.',
+                ['Kubernetes'],
+                [
+                    'We run the cluster autoscaler with HPA on top, but the cost win came almost entirely from right-sizing requests first. Most of our pods were asking for twice what they used, so nothing ever scaled down and the autoscaler had nothing to do. Fix requests before you touch anything else.',
+                    'Spot node pools for anything stateless made the single biggest difference to our bill. Set a proper PodDisruptionBudget before you do, or you will find out why on a Tuesday afternoon.',
+                ],
+                'Happy to walk you through our dashboards and what we actually pay. Easier to show than describe.',
+            ],
         ];
 
-        foreach ($questions as [$title, $body, $tagNames]) {
+        foreach ($questions as [$title, $body, $tagNames, $answers, $volunteerNote]) {
             $asker = $everyone->random();
 
             $question = RadixQuestion::create([
@@ -234,19 +466,19 @@ class DatabaseSeeder extends Seeder
                 collect($tagNames)->map(fn ($n) => Tag::findOrCreateByName($n, 'skill')->id)->all()
             );
 
-            $helpers = $everyone->whereNotIn('id', [$asker->id])->shuffle()->take(rand(1, 3));
+            $helpers = $everyone->whereNotIn('id', [$asker->id])->shuffle()->take(rand(1, 3))->values();
 
             foreach ($helpers as $index => $helper) {
                 // Some people write an answer, others just offer to talk.
                 if ($index % 2 === 0) {
                     $question->answers()->create([
                         'user_id' => $helper->id,
-                        'body' => fake()->paragraph(3),
+                        'body' => $answers[intdiv($index, 2) % count($answers)],
                     ]);
                 } else {
                     $question->volunteers()->create([
                         'user_id' => $helper->id,
-                        'note' => 'Happy to jump on a call about this.',
+                        'note' => $volunteerNote,
                     ]);
                 }
             }
@@ -258,20 +490,24 @@ class DatabaseSeeder extends Seeder
     protected function seedTeachOffers($everyone, $skills): void
     {
         $offers = [
-            ['Intro to BigQuery for non-analysts', 'BigQuery', 'session', 'beginner'],
-            ['How we actually price domains', 'Domain Strategy', 'walkthrough', 'any'],
-            ['Figma for people who are not designers', 'Figma', 'workshop', 'beginner'],
-            ['Running a useful retrospective', 'Public Speaking', 'session', 'any'],
+            ['Intro to BigQuery for non-analysts', 'BigQuery', 'session', 'beginner',
+                'No SQL needed to start. We go from "what is a table" to you writing your own query against the domains dataset, using the questions people actually ask us in Slack. Bring a laptop and one thing you have been meaning to look up.'],
+            ['How we actually price domains', 'Domain Strategy', 'walkthrough', 'any',
+                'A walk through the real pricing model — what goes into a premium tier, why two names that look identical can sit ten times apart, and the places we get it wrong. Aimed squarely at people outside the commercial teams who have always quietly wondered.'],
+            ['Figma for people who are not designers', 'Figma', 'workshop', 'beginner',
+                'Enough Figma to stop screenshotting things badly. Frames, components, and how to leave a comment a designer can actually act on. No design talent required and I promise not to mention the pen tool once.'],
+            ['Running a useful retrospective', 'Public Speaking', 'session', 'any',
+                'Most retros are a list of complaints plus one action nobody does. Forty-five minutes on structure, facilitation and how to finish with two things that genuinely change. We will run a real one on a recent project rather than a made-up example.'],
         ];
 
-        foreach ($offers as [$title, $topic, $format, $level]) {
+        foreach ($offers as [$title, $topic, $format, $level, $description]) {
             $teacher = $everyone->random();
 
             $offer = TeachOffer::create([
                 'user_id' => $teacher->id,
                 'tag_id' => Tag::findOrCreateByName($topic, 'skill')->id,
                 'title' => $title,
-                'description' => fake()->paragraph(2),
+                'description' => $description,
                 'format' => $format,
                 'level' => $level,
                 'duration_minutes' => 45,
@@ -289,20 +525,25 @@ class DatabaseSeeder extends Seeder
     protected function seedOpenInvites($everyone): void
     {
         $invites = [
-            ['Anyone up for a Sahyadri trek?', 'outdoors', 'Some weekend next month'],
-            ['Badminton, weekday evenings?', 'sports', 'Whenever we can get a court'],
-            ['Board game night at someone\'s place', 'games', 'A Friday, eventually'],
-            ['Photo walk around the old city', 'culture', 'An early Sunday'],
-            ['Anyone want to do a book swap?', 'other', 'No rush'],
+            ['Anyone up for a Sahyadri trek?', 'outdoors', 'Some weekend next month',
+                'Nothing fixed yet. Thinking one of the easier ones — Rajmachi or Andharban — so people who have never trekked can come along. Say you are in and I will start a group and we will find a date that works for most of us.'],
+            ['Badminton, weekday evenings?', 'sports', 'Whenever we can get a court',
+                'Two courts if six of us turn up, one if it is four. Somewhere in Powai or Andheri East, 7pm onwards. All levels genuinely welcome — I am bad at this and intend to stay that way.'],
+            ['Board game night at someone\'s place', 'games', 'A Friday, eventually',
+                'Catan, Codenames, and Wingspan if anyone has the patience to teach it. My place in Chembur, or somewhere else if that turns out to be closer for more people. I will sort food, bring whatever you want to drink.'],
+            ['Photo walk around the old city', 'culture', 'An early Sunday',
+                'Start at Kala Ghoda around 7am while the light is still worth having, finish wherever breakfast is. Phone cameras completely welcome — this is not a gear thing and nobody is going to look at your lens.'],
+            ['Anyone want to do a book swap?', 'other', 'No rush',
+                'Bring two books you are done with, take two you have not read. No genre rules, no obligation to finish anything, no book club afterwards. I will find a table and a corner of the office.'],
         ];
 
-        foreach ($invites as [$title, $category, $timing]) {
+        foreach ($invites as [$title, $category, $timing, $description]) {
             $author = $everyone->random();
 
             $invite = OpenInvite::create([
                 'user_id' => $author->id,
                 'title' => $title,
-                'description' => fake()->sentence(12),
+                'description' => $description,
                 'category' => $category,
                 'rough_timing' => $timing,
             ]);
@@ -337,10 +578,48 @@ class DatabaseSeeder extends Seeder
         });
     }
 
+    /**
+     * The skills this person's job makes believable, shuffled so two colleagues on
+     * the same team don't come out with an identical profile.
+     *
+     * @param  \Illuminate\Support\Collection<int, Tag>  $skills
+     * @return \Illuminate\Support\Collection<int, Tag>
+     */
+    protected function skillsFor(User $user, $skills)
+    {
+        $names = self::TEAM_SKILLS[$user->team] ?? self::DEFAULT_SKILLS;
+
+        $title = mb_strtolower((string) $user->job_title);
+
+        foreach (self::MANAGING_RANKS as $rank) {
+            if (str_contains($title, $rank)) {
+                $names = array_merge(['Hiring', 'Managing First Time'], $names);
+
+                break;
+            }
+        }
+
+        return $skills->filter(fn (Tag $tag) => in_array($tag->name, $names, true))->shuffle()->values();
+    }
+
+    /**
+     * Puts a tag on one of the four profile sections.
+     *
+     * attach() guarded by an existence check, not syncWithoutDetaching(): sync keys
+     * on the tag id alone, so re-attaching a skill under a second kind updates the
+     * existing row instead of adding one - which both loses the first section and
+     * collides with the (user, tag, kind) unique index. A skill being both "can talk
+     * about" and "can help with" is the normal case, the same way SkillSeeder writes
+     * it for the people the export covers.
+     */
     protected function attach(User $user, $tags, string $kind): void
     {
         foreach (collect($tags) as $tag) {
-            $user->tags()->syncWithoutDetaching([$tag->id => ['kind' => $kind]]);
+            $already = $user->tags()->wherePivot('kind', $kind)->where('tags.id', $tag->id)->exists();
+
+            if (! $already) {
+                $user->tags()->attach($tag->id, ['kind' => $kind]);
+            }
         }
     }
 
@@ -378,16 +657,24 @@ class DatabaseSeeder extends Seeder
 
     protected function seedSessions($everyone): void
     {
+        // The message is the part a recipient reads before deciding, so each one says
+        // why this person, rather than the same polite sentence six times over.
         $topics = [
-            ['Getting started with BigQuery ML', 'technical'],
-            ['Moving from IC to managing a team', 'leadership'],
-            ['How you think about domain pricing', 'work_knowledge'],
-            ['Career paths outside the obvious ladder', 'career'],
-            ['Handling a difficult 1:1', 'people'],
-            ['What ten years at Radix taught you', 'personal_experience'],
+            ['Getting started with BigQuery ML', 'technical',
+                'Saw BigQuery on your profile. I am trying to work out whether to build a churn model in the warehouse or do it properly, and half an hour with someone who has already done it would save me a fortnight of guessing.'],
+            ['Moving from IC to managing a team', 'leadership',
+                'I have been offered a team next quarter and I am genuinely unsure I want it. Would really value thirty minutes with someone who has made that jump and can tell me what it actually costs.'],
+            ['How you think about domain pricing', 'work_knowledge',
+                'I sit well outside the commercial side and I have been nodding along in meetings for about a year now. Would love the actual mental model rather than continuing to fake it.'],
+            ['Career paths outside the obvious ladder', 'career',
+                'Four years in and I have realised I do not want my manager\'s job. Curious how you thought about it when you were at roughly this point.'],
+            ['Handling a difficult 1:1', 'people',
+                'I have one coming up that I have now postponed twice. Would much rather rehearse it with someone than walk in and improvise.'],
+            ['What ten years at Radix taught you', 'personal_experience',
+                'No real agenda beyond wanting to hear it. Your name comes up every time somebody explains why we do something a particular way.'],
         ];
 
-        foreach ($topics as [$topic, $category]) {
+        foreach ($topics as [$topic, $category, $message]) {
             $pair = $everyone->where('open_to_mentoring', true)->random(2)->values();
 
             SessionRequest::create([
@@ -395,7 +682,7 @@ class DatabaseSeeder extends Seeder
                 'recipient_id' => $pair[1]->id,
                 'topic' => $topic,
                 'category' => $category,
-                'message' => 'Saw this on your profile - would love 30 minutes if you can spare it.',
+                'message' => $message,
                 'status' => fake()->randomElement(['pending', 'pending', 'accepted', 'declined']),
                 'scheduled_at' => fake()->boolean(50) ? now()->addDays(rand(2, 12)) : null,
             ]);
@@ -417,6 +704,7 @@ class DatabaseSeeder extends Seeder
 
         foreach ($groups as [$name, $category, $emoji, $description]) {
             $creator = $everyone->random();
+            $platform = fake()->randomElement(['whatsapp', 'slack']);
 
             $group = InterestGroup::create([
                 'name' => $name,
@@ -424,8 +712,8 @@ class DatabaseSeeder extends Seeder
                 'description' => $description,
                 'category' => $category,
                 'emoji' => $emoji,
-                'external_platform' => fake()->randomElement(['whatsapp', 'slack']),
-                'external_link' => 'https://example.com/'.Str::slug($name),
+                'external_platform' => $platform,
+                'external_link' => $this->chatLink($platform),
                 'created_by' => $creator->id,
             ]);
 
@@ -438,51 +726,256 @@ class DatabaseSeeder extends Seeder
         }
     }
 
+
+    /**
+     * Gives the admin account something of their own across the pillars.
+     *
+     * Not favouritism - it is the account every demo starts on, so a blank bell
+     * and an empty "things you host" is the first thing anyone sees. Each row is
+     * real activity with real participants, so NotificationSeeder then fills the
+     * inbox from it exactly as it does for everybody else.
+     */
+    protected function seedDemoAccountActivity($everyone): void
+    {
+        $admin = $everyone->firstWhere('role', 'admin');
+
+        if (! $admin) {
+            return;
+        }
+
+        $others = $everyone->whereNotIn('id', [$admin->id]);
+
+        $event = Event::create([
+            'host_id' => $admin->id,
+            'title' => 'Friday demo and pizza',
+            'description' => 'Whatever anyone has been building this fortnight, ten minutes each, no slides allowed. Pizza arrives at 5 whether or not the demos work, which historically they do not.',
+            'category' => 'work',
+            'starts_at' => now()->addDays(5)->setTime(17, 0),
+            'location' => $admin->location ?? 'Mumbai',
+            'is_virtual' => false,
+            'capacity' => 20,
+        ]);
+        $event->rsvps()->create(['user_id' => $admin->id, 'status' => 'going']);
+        $others->random(8)->each(fn (User $u) => $event->rsvps()->firstOrCreate(
+            ['user_id' => $u->id],
+            ['status' => fake()->randomElement(['going', 'going', 'maybe'])],
+        ));
+        $event->syncGoingCount();
+
+        $story = Story::create([
+            'user_id' => $admin->id,
+            'title' => 'We shipped Radix Connect in a fortnight',
+            'body' => implode("\n\n", [
+                'Six pillars, one backend, one frontend, and a deadline that did not move once. I want to write down how it actually went while I still remember the bad parts.',
+                'The thing that saved us was deciding on the data model on day two and then refusing to reopen it. Every feature after that was a controller and a screen, which is boring in the best possible way.',
+                'What I would do differently: seed real content much earlier. We demoed to ourselves for a week with placeholder text and could not tell which screens were actually any good until there was something real on them.',
+            ]),
+            'category' => 'making',
+        ]);
+        $others->random(9)->each(fn (User $u) => $story->reactions()->firstOrCreate(
+            ['user_id' => $u->id],
+            ['reaction' => fake()->randomElement(['clap', 'heart', 'mind_blown', 'inspired'])],
+        ));
+        $story->syncReactionsCount();
+
+        $recommendation = Recommendation::create([
+            'user_id' => $admin->id,
+            'title' => 'A Philosophy of Software Design',
+            'creator' => 'John Ousterhout',
+            'type' => 'book',
+            'stream' => 'work',
+            'why' => 'Short, opinionated, and the only book that has genuinely changed how I write an interface. The chapter on why comments should say what the code cannot is worth the afternoon on its own.',
+        ]);
+        $others->random(7)->each(fn (User $u) => $recommendation->likes()->firstOrCreate(['user_id' => $u->id]));
+        $recommendation->syncLikesCount();
+
+        $group = InterestGroup::create([
+            'name' => 'Weeknight Builders',
+            'slug' => 'weeknight-builders',
+            'description' => 'Side projects, half-finished ideas, and the occasional thing that actually ships.',
+            'category' => 'tech',
+            'emoji' => '🛠️',
+            'external_platform' => 'slack',
+            'external_link' => $this->chatLink('slack'),
+            'created_by' => $admin->id,
+        ]);
+        $group->members()->attach($admin->id, ['role' => 'owner']);
+        $others->random(9)->each(fn (User $u) => $group->members()->syncWithoutDetaching([$u->id => ['role' => 'member']]));
+        $group->syncMembersCount();
+
+        $slot = OfficeHourSlot::create([
+            'host_id' => $admin->id,
+            'title' => 'Office hours with '.explode(' ', $admin->name)[0],
+            'description' => 'Backends, hiring, or how any part of Radix Connect works. Bring a question or do not.',
+            'starts_at' => now()->addDays(4)->setTime(15, 0),
+            'duration_minutes' => 30,
+            'capacity' => 3,
+            'location' => $admin->location,
+        ]);
+        foreach ([
+            'How do I get started contributing to the backend?',
+            'Career advice — I want to move towards infrastructure.',
+        ] as $index => $topic) {
+            $slot->bookings()->firstOrCreate(
+                ['user_id' => $others->values()[$index * 7]->id],
+                ['topic' => $topic],
+            );
+        }
+        $slot->syncBookingsCount();
+
+        $coffee = CoffeeInvite::create([
+            'host_id' => $admin->id,
+            'kind' => 'coffee',
+            'note' => 'Downstairs at 4, anyone who wants a break from their screen. I am buying.',
+            'starts_at' => now()->addDays(2)->setTime(16, 0),
+            'location' => $admin->location,
+            'capacity' => 4,
+        ]);
+        $others->random(3)->each(fn (User $u) => $coffee->joins()->firstOrCreate(['user_id' => $u->id]));
+        $coffee->syncJoinsCount();
+
+        $offer = TeachOffer::create([
+            'user_id' => $admin->id,
+            'tag_id' => Tag::findOrCreateByName('Laravel', 'skill')->id,
+            'title' => 'Reading a Laravel codebase you did not write',
+            'description' => 'Where to start when you open an unfamiliar Laravel project — routes, then the models, then the tests, and why that order. We will do it live on this one.',
+            'format' => 'session',
+            'level' => 'beginner',
+            'duration_minutes' => 45,
+            'min_interested' => 3,
+            'preferred_times' => 'Weekday afternoons',
+        ]);
+        $others->random(5)->each(fn (User $u) => $offer->interests()->firstOrCreate(['user_id' => $u->id]));
+        $offer->syncInterestedCount();
+
+        $invite = OpenInvite::create([
+            'user_id' => $admin->id,
+            'title' => 'Long walk, Bandra to Worli, whenever',
+            'description' => 'About twelve kilometres along the sea road, taken slowly, with a stop for breakfast roughly in the middle. No fitness required and nobody is timing it.',
+            'category' => 'outdoors',
+            'rough_timing' => 'A Sunday morning, once it cools down',
+        ]);
+        $invite->interests()->firstOrCreate(['user_id' => $admin->id]);
+        $others->random(6)->each(fn (User $u) => $invite->interests()->firstOrCreate(['user_id' => $u->id]));
+        $invite->syncInterestedCount();
+
+        // Both directions, so the mentoring tab has an incoming and an outgoing row.
+        $askers = $others->where('open_to_mentoring', true)->random(2)->values();
+
+        SessionRequest::create([
+            'requester_id' => $askers[0]->id,
+            'recipient_id' => $admin->id,
+            'topic' => 'Getting into backend engineering from support',
+            'category' => 'career',
+            'message' => 'I have been on the support side for three years and I write small scripts for myself constantly. Would love half an hour on whether that is a realistic move and what I would need to learn first.',
+            'status' => 'pending',
+        ]);
+
+        SessionRequest::create([
+            'requester_id' => $admin->id,
+            'recipient_id' => $askers[1]->id,
+            'topic' => 'How the commercial side reads our roadmap',
+            'category' => 'work_knowledge',
+            'message' => 'We keep building things the commercial teams then have to explain, and I suspect that is our fault rather than theirs. Would like thirty minutes to hear it from your side.',
+            'status' => 'accepted',
+            'scheduled_at' => now()->addDays(6)->setTime(11, 30),
+        ]);
+    }
+
+    /** An invite link shaped like the real thing, rather than an example.com stub. */
+    protected function chatLink(string $platform): string
+    {
+        return $platform === 'whatsapp'
+            ? 'https://chat.whatsapp.com/'.Str::upper(Str::random(22))
+            : 'https://radix.slack.com/archives/C'.Str::upper(Str::random(10));
+    }
+
     protected function seedRecommendations($everyone): void
     {
         $items = [
-            ['The Manager\'s Path', 'Camille Fournier', 'book', 'work'],
-            ['Acquired', 'Ben Gilbert & David Rosenthal', 'podcast', 'work'],
-            ['Shape Up', 'Ryan Singer', 'book', 'work'],
-            ['Designing Data-Intensive Applications', 'Martin Kleppmann', 'book', 'work'],
-            ['Linear', null, 'tool', 'work'],
-            ['Drive to Survive', null, 'show', 'leisure'],
-            ['Everything Everywhere All At Once', null, 'film', 'leisure'],
-            ['Project Hail Mary', 'Andy Weir', 'book', 'leisure'],
-            ['Darknet Diaries', 'Jack Rhysider', 'podcast', 'leisure'],
-            ['The Bear', null, 'show', 'leisure'],
+            ['The Manager\'s Path', 'Camille Fournier', 'book', 'work',
+                'The only management book I have read that admits most of the job is unglamorous. The chapter on running your first one-on-one is worth the price of the whole thing.'],
+            ['Acquired', 'Ben Gilbert & David Rosenthal', 'podcast', 'work',
+                'Three hours on a single company, properly researched, no filler. The Nvidia episodes explained more about the last decade than everything I read at the time put together.'],
+            ['Shape Up', 'Ryan Singer', 'book', 'work',
+                'Whether or not you ever adopt the six-week cycle, "appetite instead of estimate" is the single most useful idea I have taken into planning. Free online, and short.'],
+            ['Designing Data-Intensive Applications', 'Martin Kleppmann', 'book', 'work',
+                'Dense, and worth every slow page. I still go back to the replication chapter every time we argue about consistency, which is more often than you would think.'],
+            ['Linear', null, 'tool', 'work',
+                'We moved one project onto it for a quarter as an experiment and nobody wanted to move back. The keyboard-first thing sounds like a gimmick until about day three.'],
+            ['Drive to Survive', null, 'show', 'leisure',
+                'Yes, it is edited to within an inch of its life. It is also the reason four of us now watch every race at 6am, so I have stopped apologising for recommending it.'],
+            ['Everything Everywhere All At Once', null, 'film', 'leisure',
+                'Starts as absurd and turns, with no warning at all, into the most moving thing I have watched in years. Stay through the bit with the rocks.'],
+            ['Project Hail Mary', 'Andy Weir', 'book', 'leisure',
+                'Read it in two sittings on a flight to Dubai and back. Go in knowing as little as possible — the less you know, the better the middle third lands.'],
+            ['Darknet Diaries', 'Jack Rhysider', 'podcast', 'leisure',
+                'Proper security stories told without the usual breathless hype. Episode 53 is what I send to anyone who thinks phishing only happens to careless companies.'],
+            ['The Bear', null, 'show', 'leisure',
+                'The most accurate thing on television about what a badly run team feels like from the inside. Season two, episode seven is an hour of pure stress and entirely worth it.'],
         ];
 
-        foreach ($items as [$title, $creator, $type, $stream]) {
-            Recommendation::create([
+        foreach ($items as [$title, $creator, $type, $stream, $why]) {
+            $recommendation = Recommendation::create([
                 'user_id' => $everyone->random()->id,
                 'title' => $title,
                 'creator' => $creator,
                 'type' => $type,
                 'stream' => $stream,
-                'why' => fake()->sentence(16),
+                'why' => $why,
             ]);
+
+            // Without these the whole Learn tab reads "♥ 0" and the "someone liked your
+            // recommendation" notification never has anything to fire on.
+            $everyone->whereNotIn('id', [$recommendation->user_id])->random(rand(2, 9))
+                ->each(fn (User $u) => $recommendation->likes()->firstOrCreate(['user_id' => $u->id]));
+
+            $recommendation->syncLikesCount();
         }
     }
 
     protected function seedAmasAndStories($everyone): void
     {
         $stories = [
-            ['Finished my first HYROX', 'sport'],
-            ['Ten years at Radix, and what changed', 'milestone'],
-            ['Three weeks solo across Japan', 'travel'],
-            ['Built a mechanical keyboard from scratch', 'making'],
-            ['Learned to sail this summer', 'learning'],
-            ['Kedarkantha in January, in the snow', 'travel'],
+            ['Finished my first HYROX', 'sport', [
+                'I signed up in June on a dare from my brother and then spent four months quietly terrified. For anyone who has not come across it: HYROX is eight one-kilometre runs with a station between every one of them — sled push, burpee broad jumps, farmers carry, and a wall ball finish that everybody warns you about and nobody actually prepares you for.',
+                'The training was the unglamorous part. Five mornings a week at the gym in Andheri before standup, mostly alone, mostly in the dark. Two months in I did something to my knee, lost three weeks, and very nearly let the whole thing go.',
+                'Finished in 1:38 at the Mumbai event. Slower than I hoped and a lot faster than I feared. If anyone is thinking about the next one I have a training plan, a physio recommendation and far too many opinions about compression socks.',
+            ]],
+            ['Ten years at Radix, and what changed', 'milestone', [
+                'I joined in 2015, when the whole company fit into one room and we were still arguing about whether .tech would ever sell. In my first week somebody handed me a spreadsheet and said "this is the registry". That was onboarding.',
+                'What changed is not the obvious thing. We got bigger, yes. The real shift is that we stopped guessing — decisions that used to be a loud discussion now start with a query and end with a number, and I do not think everyone realises how recent that is.',
+                'What has not changed is that you can still walk up to anybody here, Sandeep included, and ask a stupid question. I have tested this repeatedly and at some length. Ten years in, it is still the first thing I would tell a new joiner about.',
+            ]],
+            ['Three weeks solo across Japan', 'travel', [
+                'Twenty-one days, one rail pass, and a rule I set myself before leaving: no more than two nights anywhere. Tokyo, Kanazawa, Takayama, Kyoto, Naoshima, Hiroshima, then back up the coast the slow way.',
+                'The trains have ruined me for every other country. Not the speed — the fact that a nine-carriage train arrives at the exact second the board says it will, every single time, and nobody around you finds this remarkable.',
+                'The best day was not a famous one. I got off at a small station near Kurashiki because the light looked good from the window, walked for four hours, ate at a counter with six seats, and could not tell you the name of the place if you paid me. Happy to share the itinerary and the spreadsheet.',
+            ]],
+            ['Built a mechanical keyboard from scratch', 'making', [
+                'This started as a plan to save money on a keyboard and ended, as these things reliably do, costing considerably more than a keyboard.',
+                'Sixty-five percent layout, aluminium case, and every one of the sixty-eight switches lubed and filmed by hand across two weekends. The lubing is genuinely meditative right up to about switch forty, after which it is simply labour.',
+                'Soldering was where I nearly gave up — two dead rows and a very late night with a multimeter and a YouTube tutorial from 2019. It types beautifully now. My wife says it sounds like someone dropping marbles into a bowl, which the internet assures me is the goal.',
+            ]],
+            ['Learned to sail this summer', 'learning', [
+                'Six weekends at the sailing club in Colaba, in a boat small enough that every mistake is immediate and deeply personal.',
+                'I capsized in each of the first three sessions. There is a very specific humility in being fished out of the Arabian Sea by a sixteen-year-old who is extremely kind about it.',
+                'Somewhere in week four it clicked — you stop fighting the boat and start reading the water ahead of it. Nothing I do at a desk has that quality of instant, unarguable feedback. Certification in November if the wind cooperates.',
+            ]],
+            ['Kedarkantha in January, in the snow', 'travel', [
+                'Four days, roughly twenty kilometres, and about a metre of snow that not one of the six of us had actually trekked in before.',
+                'Day two was the hard one. Sankri to Juda ka Talab does not look like much on paper, but in fresh snow with a full pack it took us seven hours and the last ninety minutes were in the dark. We were not clever about it.',
+                'Summit morning started at 4am at minus eight. The sunrise over the Swargarohini range is the best thing I have seen and I have no photograph that does it justice, because my phone died at 5:40 in the cold. Probably for the best.',
+            ]],
         ];
 
-        foreach ($stories as [$title, $category]) {
+        foreach ($stories as [$title, $category, $paragraphs]) {
             $author = $everyone->random();
 
             $story = Story::create([
                 'user_id' => $author->id,
                 'title' => $title,
-                'body' => fake()->paragraphs(3, true),
+                'body' => implode("\n\n", $paragraphs),
                 'category' => $category,
             ]);
 
@@ -508,39 +1001,100 @@ class DatabaseSeeder extends Seeder
 
             $story->update(['ama_id' => $ama->id]);
 
-            $everyone->random(4)->each(function (User $u) use ($ama) {
-                $ama->questions()->create([
-                    'user_id' => $u->id,
-                    'body' => fake()->sentence(12).'?',
-                ]);
-            });
+            $asked = $this->amaQuestionsFor($story->title);
+
+            $everyone->whereNotIn('id', [$ama->host_id])->random(4)->values()
+                ->each(function (User $u, int $index) use ($ama, $asked, $everyone) {
+                    [$body, $answer] = $asked[$index % count($asked)];
+
+                    $question = $ama->questions()->create([
+                        'user_id' => $u->id,
+                        'body' => $body,
+                    ]);
+
+                    // The host has got to the first couple, as a host would.
+                    if ($answer !== null && $index < 2) {
+                        $question->answers()->create(['user_id' => $ama->host_id, 'body' => $answer]);
+                    }
+
+                    $everyone->whereNotIn('id', [$u->id])->random(rand(0, 6))
+                        ->each(fn (User $voter) => $question->votes()->firstOrCreate(['user_id' => $voter->id]));
+
+                    $question->syncUpvotesCount();
+                });
 
             $ama->syncQuestionsCount();
         });
     }
 
+    /**
+     * The questions a story actually drew, paired with the host's reply.
+     *
+     * Keyed off the story rather than pooled: "what would you do differently" reads
+     * as a real question under the HYROX story and as filler under any other.
+     */
+    protected function amaQuestionsFor(string $storyTitle): array
+    {
+        $byStory = [
+            'Finished my first HYROX' => [
+                ['How many hours a week were you actually training? Honest answer, not the plan.',
+                    'Six or seven, spread over five mornings. The plan said nine. The plan was written by someone without a job.'],
+                ['What would you do differently if you were starting again tomorrow?',
+                    'Strength first, running second. I had the engine and not the legs, and the sled push is where that bill comes due.'],
+                ['What is the wall ball thing everyone keeps warning about?',
+                    'A hundred squats holding a weighted ball, at the end, after everything else. It is not technical. It is just where the day catches up with you.'],
+                ['Did you change how you eat, or just eat more of the same?', null],
+                ['How did you fit the gym around work without burning out?', null],
+            ],
+            'Ten years at Radix, and what changed' => [
+                ['What is the one decision you would take back?',
+                    'Waiting eight months to say a project was not working. Everyone already knew. All the waiting bought was eight months.'],
+                ['What changed most in the year we went from twenty people to a hundred?',
+                    'You stopped being able to hold the whole company in your head, and we were slow to admit it. Everything we now call process is us catching up with that.'],
+                ['What would you tell someone in their first month here?',
+                    'Ask the question in the room rather than in a DM afterwards. Nobody here minds, and you will find out that half the room was wondering the same thing.'],
+                ['Was there a point where you nearly left?', null],
+                ['Which project are you proudest of that nobody remembers?', null],
+            ],
+        ];
+
+        return $byStory[$storyTitle] ?? [
+            ['What made you start?', 'Mostly stubbornness, and someone telling me it was a bad idea.'],
+            ['What surprised you most about it?', 'How much of it was just turning up on the days I did not want to.'],
+            ['Would you do it again?', null],
+            ['What would you tell someone thinking about trying this?', null],
+        ];
+    }
+
     protected function seedEvents($everyone): void
     {
         $events = [
-            ['Sunday morning run at Powai Lake', 'sports', '+4 days'],
-            ['F1 screening: Monza', 'film', '+9 days'],
-            ['Trek to Rajmachi', 'outdoors', '+16 days'],
-            ['Team dinner at Bandra', 'food', '+6 days'],
-            ['Virtual game night', 'games', '+11 days'],
-            ['Workshop: writing better docs', 'work', '+14 days'],
-            ['Museum walk: CSMVS', 'culture', '+21 days'],
+            ['Sunday morning run at Powai Lake', 'sports', '+4 days',
+                'Easy 5k around the lake, 6:30am from the Nirvana Park gate. No pace pressure — we regroup at every kilometre and nobody gets left behind. Chai and vada pav after, which is arguably the actual point.'],
+            ['F1 screening: Monza', 'film', '+9 days',
+                'Lights out at 6:30pm on the big screen in the cafeteria. Bring strong opinions about tyre strategy. There will be pizza and, based on every previous screening, at least one argument about the 2021 season.'],
+            ['Trek to Rajmachi', 'outdoors', '+16 days',
+                'Overnight from Lonavala — leaving Friday around 10pm, back Saturday evening. Moderate, about 15km round trip. Carry two litres of water, shoes with actual grip, and nothing you mind getting muddy.'],
+            ['Team dinner at Bandra', 'food', '+6 days',
+                'Table booked for eight at Pali Village Cafe. No agenda, no laptops, we split the bill evenly and nobody does the calculator thing. Tell me by Thursday so I can fix the numbers.'],
+            ['Virtual game night', 'games', '+11 days',
+                'Codenames and a few rounds of Among Us over Meet, 8pm IST. This one exists precisely so Dubai and London can actually join something. Cameras optional, chaos guaranteed.'],
+            ['Workshop: writing better docs', 'work', '+14 days',
+                'Ninety minutes on why nobody reads our documentation and what to do about it. Bring a doc you have written that you are not happy with — we will rewrite two of them live and you can decide whose.'],
+            ['Museum walk: CSMVS', 'culture', '+21 days',
+                'Two hours through the Indian sculpture and Tata galleries, then lunch somewhere in Kala Ghoda. I have done this walk often enough to know which rooms to skip, which is most of the value.'],
         ];
 
-        foreach ($events as [$title, $category, $when]) {
+        foreach ($events as [$title, $category, $when, $description]) {
             $host = $everyone->random();
 
             $event = Event::create([
                 'host_id' => $host->id,
                 'title' => $title,
-                'description' => fake()->sentence(18),
+                'description' => $description,
                 'category' => $category,
                 'starts_at' => now()->modify($when)->setTime(rand(7, 19), 0),
-                'location' => fake()->randomElement(UserFactory::LOCATIONS),
+                'location' => $category === 'games' ? 'Google Meet' : ($host->location ?? 'Mumbai'),
                 'is_virtual' => $category === 'games',
                 'capacity' => fake()->randomElement([null, 10, 20]),
             ]);

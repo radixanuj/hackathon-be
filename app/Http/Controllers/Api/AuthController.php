@@ -60,7 +60,38 @@ class AuthController extends Controller
     }
 
     /**
-     * Demo sign-in: a name plus the shared password, no per-user credentials.
+     * The roster the sign-in screen's name box searches.
+     *
+     * Unauthenticated by necessity — it is read before anyone has a token. It is
+     * therefore deliberately thin: a name and where they sit, enough to tell two
+     * people with the same first name apart, and no email or contact details.
+     * Off entirely when demo sign-in is disabled.
+     */
+    public function directory(Request $request): JsonResponse
+    {
+        if (! config('radix.demo_login.enabled')) {
+            return response()->json(['message' => 'Demo sign-in is disabled.'], 404);
+        }
+
+        $term = trim((string) $request->query('q', ''));
+
+        $people = User::query()
+            ->active()
+            ->when($term !== '', fn ($q) => $q->where('name', 'like', '%'.$term.'%'))
+            ->orderBy('name')
+            ->limit(10)
+            ->get(['id', 'name', 'job_title', 'team', 'location']);
+
+        return response()->json(['data' => $people]);
+    }
+
+    /**
+     * Demo sign-in: a person plus the shared password, no per-user credentials.
+     *
+     * The sign-in screen picks someone out of the directory above and sends their
+     * `user_id`, so "Sahar Khan" and "Saif Khan" can never be confused for one
+     * another. A bare `name` is still accepted — that is the path that creates a
+     * profile on the spot for someone the roster has never heard of.
      *
      * It returns the same token shape as a real login, so nothing downstream
      * knows the difference. Disable with DEMO_LOGIN_ENABLED=false.
@@ -72,7 +103,8 @@ class AuthController extends Controller
         }
 
         $data = $request->validate([
-            'name' => ['required', 'string', 'max:120'],
+            'user_id' => ['required_without:name', 'nullable', 'integer', 'exists:users,id'],
+            'name' => ['required_without:user_id', 'nullable', 'string', 'max:120'],
             'password' => ['required', 'string'],
         ]);
 
@@ -80,6 +112,10 @@ class AuthController extends Controller
             throw ValidationException::withMessages([
                 'password' => ['That password is not right.'],
             ]);
+        }
+
+        if (! empty($data['user_id'])) {
+            return $this->tokenResponse($request, $this->assertActive(User::findOrFail($data['user_id'])));
         }
 
         $name = trim($data['name']);
@@ -102,13 +138,18 @@ class AuthController extends Controller
             $questBuilder->buildFor($user);
         }
 
+        return $this->tokenResponse($request, $this->assertActive($user));
+    }
+
+    protected function assertActive(User $user): User
+    {
         if (! $user->is_active) {
             throw ValidationException::withMessages([
                 'name' => ['This account is no longer active.'],
             ]);
         }
 
-        return $this->tokenResponse($request, $user);
+        return $user;
     }
 
     /** A stable, unique placeholder address for demo-created profiles. */

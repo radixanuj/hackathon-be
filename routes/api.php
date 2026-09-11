@@ -52,6 +52,8 @@ Route::prefix('v1')->group(function () {
     // Demo sign-in: name + the shared password. Real email/password login is
     // left intact alongside it - see config/radix.php.
     Route::post('auth/demo-login', [AuthController::class, 'demoLogin']);
+    // Read before anyone has a token, so the name box can offer real people.
+    Route::get('auth/directory', [AuthController::class, 'directory']);
 
     Route::post('auth/register', [AuthController::class, 'register']);
     Route::post('auth/login', [AuthController::class, 'login']);
