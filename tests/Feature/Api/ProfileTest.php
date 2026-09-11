@@ -65,6 +65,34 @@ class ProfileTest extends TestCase
         $this->getJson('/api/v1/users?tenure_band=senior')->assertOk()->assertJsonCount(1, 'data');
     }
 
+    public function test_it_replaces_the_currently_into_list_and_resolves_icons(): void
+    {
+        $user = User::factory()->create();
+        $this->actingAs($user, 'sanctum');
+
+        $this->putJson('/api/v1/me/currently', ['currently' => [
+            ['label' => 'Reading', 'value' => 'Project Hail Mary'],
+            ['label' => 'Training for', 'value' => 'A 10k in November'],
+            // Half-filled lines are dropped rather than stored.
+            ['label' => 'Watching', 'value' => '  '],
+        ]])
+            ->assertOk()
+            ->assertJsonCount(2, 'data.currently')
+            ->assertJsonPath('data.currently.0.icon', '📖')
+            ->assertJsonPath('data.currently.1.value', 'A 10k in November');
+
+        // Sent whole: a shorter list is a deletion, not a merge.
+        $this->putJson('/api/v1/me/currently', ['currently' => [
+            ['icon' => '🎧', 'label' => 'Listening to', 'value' => 'Acquired, on repeat'],
+        ]])
+            ->assertOk()
+            ->assertJsonCount(1, 'data.currently')
+            ->assertJsonPath('data.currently.0.icon', '🎧');
+
+        $this->putJson('/api/v1/me/currently', ['currently' => array_fill(0, 5, ['label' => 'Reading', 'value' => 'Too much'])])
+            ->assertStatus(422);
+    }
+
     public function test_it_replaces_only_the_tag_section_being_sent(): void
     {
         $user = User::factory()->create();
