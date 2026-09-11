@@ -11,8 +11,17 @@ class SessionRequest extends Model
         'work_knowledge', 'career', 'leadership', 'people', 'technical', 'personal_experience',
     ];
 
+    /**
+     * What the asker came in through.
+     *
+     * knowledge - one topic, one half hour, usually off the back of a skill tag.
+     * mentoring - a standing conversation about where somebody is heading.
+     * coaching  - a few focused sessions on one thing they want to get better at.
+     */
+    public const KINDS = ['knowledge', 'mentoring', 'coaching'];
+
     protected $fillable = [
-        'requester_id', 'recipient_id', 'tag_id', 'topic', 'category', 'message',
+        'requester_id', 'recipient_id', 'kind', 'tag_id', 'topic', 'category', 'message',
         'duration_minutes', 'proposed_at', 'scheduled_at', 'status', 'response_message',
         'responded_at',
     ];

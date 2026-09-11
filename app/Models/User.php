@@ -22,7 +22,7 @@ class User extends Authenticatable
     protected $fillable = [
         'name', 'email', 'password', 'job_title', 'team', 'location', 'timezone',
         'joined_at', 'intro', 'avatar_url', 'pronouns', 'role', 'is_active',
-        'open_to_mentoring', 'open_to_blind_meetups',
+        'open_to_mentoring', 'open_to_blind_meetups', 'is_mentor',
     ];
 
     protected $hidden = ['password', 'remember_token'];
@@ -33,6 +33,7 @@ class User extends Authenticatable
         'is_active' => true,
         'open_to_mentoring' => true,
         'open_to_blind_meetups' => true,
+        'is_mentor' => false,
         'timezone' => 'Asia/Kolkata',
     ];
 
@@ -45,6 +46,7 @@ class User extends Authenticatable
             'is_active' => 'boolean',
             'open_to_mentoring' => 'boolean',
             'open_to_blind_meetups' => 'boolean',
+            'is_mentor' => 'boolean',
         ];
     }
 

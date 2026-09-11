@@ -30,6 +30,7 @@ class UserResource extends JsonResource
             'is_active' => $this->is_active,
             'open_to_mentoring' => $this->open_to_mentoring,
             'open_to_blind_meetups' => $this->open_to_blind_meetups,
+            'is_mentor' => $this->is_mentor,
             'can_talk_about' => $this->when($tags !== null, fn () => $this->tagNames('can_talk_about')),
             'can_help_with' => $this->when($tags !== null, fn () => $this->tagNames('can_help_with')),
             'want_to_learn' => $this->when($tags !== null, fn () => $this->tagNames('want_to_learn')),

@@ -15,6 +15,7 @@ class TagResource extends JsonResource
             'slug' => $this->slug,
             'type' => $this->type,
             'usage_count' => $this->usage_count,
+            'is_featured' => $this->featured_rank !== null,
         ];
     }
 }

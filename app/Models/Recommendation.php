@@ -8,7 +8,18 @@ use Illuminate\Database\Eloquent\Relations\HasMany;
 
 class Recommendation extends Model
 {
-    public const TYPES = ['book', 'podcast', 'article', 'show', 'film', 'course', 'tool'];
+    /**
+     * What people actually recommend to each other.
+     *
+     * Wider than a media list because the Recommendation Corner on Find Your
+     * Crowd is: alongside books and podcasts it carries newsletters, standing
+     * resources and people worth following, and the "Recommend something" form
+     * offers all of them.
+     */
+    public const TYPES = [
+        'book', 'podcast', 'article', 'newsletter', 'show', 'film',
+        'course', 'resource', 'tool', 'app', 'person', 'other',
+    ];
 
     public const STREAMS = ['work', 'leisure'];
 

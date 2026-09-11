@@ -27,6 +27,7 @@ class SessionRequestController extends Controller
         $filters = $request->validate([
             'direction' => ['nullable', Rule::in(['incoming', 'outgoing', 'all'])],
             'status' => ['nullable', 'string'],
+            'kind' => ['nullable', Rule::in(SessionRequest::KINDS)],
             'per_page' => ['nullable', 'integer', 'min:1', 'max:100'],
         ]);
 
@@ -41,6 +42,7 @@ class SessionRequestController extends Controller
                 fn ($sub) => $sub->where('recipient_id', $userId)->orWhere('requester_id', $userId)
             ))
             ->when($filters['status'] ?? null, fn ($q, $status) => $q->where('status', $status))
+            ->when($filters['kind'] ?? null, fn ($q, $kind) => $q->where('kind', $kind))
             ->orderByDesc('id');
 
         return SessionRequestResource::collection(
@@ -52,6 +54,7 @@ class SessionRequestController extends Controller
     {
         $data = $request->validate([
             'recipient_id' => ['required', 'integer', 'exists:users,id'],
+            'kind' => ['nullable', Rule::in(SessionRequest::KINDS)],
             'topic' => ['required', 'string', 'max:160'],
             'category' => ['required', Rule::in(SessionRequest::CATEGORIES)],
             'tag_id' => ['nullable', 'integer', 'exists:tags,id'],
@@ -72,21 +75,36 @@ class SessionRequestController extends Controller
             return response()->json(['message' => 'This person is not taking session requests right now.'], 422);
         }
 
+        $kind = $data['kind'] ?? 'knowledge';
+
+        // Anyone open to being asked can take a knowledge session or coaching;
+        // mentoring is a standing commitment, and only the roster carries it.
+        if ($kind === 'mentoring' && ! $recipient->is_mentor) {
+            return response()->json(['message' => 'This person is not on the mentoring roster.'], 422);
+        }
+
         $sessionRequest = SessionRequest::create($data + [
             'requester_id' => $requester->id,
+            'kind' => $kind,
             'duration_minutes' => $data['duration_minutes'] ?? 30,
         ]);
 
         $this->notifier->send($recipient, 'session_request.received', [
             'actor' => $requester,
-            'title' => $requester->name.' asked you for '.$sessionRequest->duration_minutes.' minutes',
+            'title' => match ($sessionRequest->kind) {
+                'mentoring' => $requester->name.' asked you to mentor them',
+                'coaching' => $requester->name.' asked you to coach them',
+                default => $requester->name.' asked you for '.$sessionRequest->duration_minutes.' minutes',
+            },
             'body' => $sessionRequest->topic,
             'subject' => $sessionRequest,
-            'action_url' => '/connect?tab=mentoring',
+            'action_url' => '/connect',
         ]);
 
+        // `status` comes off a column default, so the row has to be re-read for
+        // the response to carry it rather than a null.
         return response()->json([
-            'data' => new SessionRequestResource($sessionRequest->load(['requester', 'recipient', 'tag'])),
+            'data' => new SessionRequestResource($sessionRequest->fresh()->load(['requester', 'recipient', 'tag'])),
         ], 201);
     }
 
@@ -141,7 +159,7 @@ class SessionRequestController extends Controller
                 'suggest_time' => $when ? 'How about '.$when.'?' : $sessionRequest->topic,
             },
             'subject' => $sessionRequest,
-            'action_url' => '/connect?tab=mentoring',
+            'action_url' => '/connect',
         ]);
 
         return response()->json([
@@ -177,7 +195,7 @@ class SessionRequestController extends Controller
                 : $actor->name.' marked your session as done',
             'body' => $sessionRequest->topic,
             'subject' => $sessionRequest,
-            'action_url' => '/connect?tab=mentoring',
+            'action_url' => '/connect',
         ]);
 
         return response()->json([

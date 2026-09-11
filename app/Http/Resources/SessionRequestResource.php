@@ -13,6 +13,7 @@ class SessionRequestResource extends JsonResource
 
         return [
             'id' => $this->id,
+            'kind' => $this->kind,
             'topic' => $this->topic,
             'category' => $this->category,
             'message' => $this->message,

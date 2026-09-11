@@ -494,5 +494,19 @@
     "nickname": "Devyani",
     "location": "Mumbai",
     "startDate": "2024-01-29"
+  },
+  {
+    "fullName": "Smita Jadhav",
+    "title": "Specialist - Trust & Safety",
+    "nickname": "Smita",
+    "location": "Mumbai",
+    "startDate": "2020-08-31"
+  },
+  {
+    "fullName": "Tanisha Singh",
+    "title": "Manager - People Success",
+    "nickname": "Tanisha",
+    "location": "Mumbai",
+    "startDate": "2020-08-31"
   }
 ]

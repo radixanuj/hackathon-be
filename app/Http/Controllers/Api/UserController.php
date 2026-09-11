@@ -23,10 +23,14 @@ class UserController extends Controller
             'skill' => ['nullable', 'string'],
             'interest' => ['nullable', 'string'],
             'tag' => ['nullable', 'string'],
-            'kind' => ['nullable', Rule::in(User::TAG_KINDS)],
+            // One kind, or several comma-separated: "who can help with or talk
+            // about React" is one question, not two.
+            'kind' => ['nullable', 'string'],
             'tenure_band' => ['nullable', Rule::in(['senior', 'junior'])],
             'new_joiners' => ['nullable', 'boolean'],
             'open_to_mentoring' => ['nullable', 'boolean'],
+            // The mentoring roster proper, not the wider "open to being asked" flag.
+            'mentors' => ['nullable', 'boolean'],
             'per_page' => ['nullable', 'integer', 'min:1', 'max:100'],
         ]);
 
@@ -52,11 +56,15 @@ class UserController extends Controller
         }
 
         if ($slug = $filters['tag'] ?? null) {
-            $kind = $filters['kind'] ?? null;
-            $query->whereHas('tags', function ($t) use ($slug, $kind) {
+            $kinds = collect(explode(',', (string) ($filters['kind'] ?? '')))
+                ->map(fn (string $kind) => trim($kind))
+                ->filter(fn (string $kind) => in_array($kind, User::TAG_KINDS, true))
+                ->values();
+
+            $query->whereHas('tags', function ($t) use ($slug, $kinds) {
                 $t->where('slug', $slug);
-                if ($kind) {
-                    $t->where('user_tag.kind', $kind);
+                if ($kinds->isNotEmpty()) {
+                    $t->whereIn('user_tag.kind', $kinds->all());
                 }
             });
         }
@@ -74,6 +82,10 @@ class UserController extends Controller
 
         if ($request->has('open_to_mentoring')) {
             $query->where('open_to_mentoring', $request->boolean('open_to_mentoring'));
+        }
+
+        if ($request->has('mentors')) {
+            $query->where('is_mentor', $request->boolean('mentors'));
         }
 
         return UserResource::collection(
