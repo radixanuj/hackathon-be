@@ -31,6 +31,7 @@ class Notification extends Model
     public const TYPES = [
         // --- People ---------------------------------------------------------
         'quest.completed' => ['people', '🎯'],
+        'nudge.received' => ['people', '👉'],
 
         // --- Connect --------------------------------------------------------
         'session_request.received' => ['connect', '🤝'],

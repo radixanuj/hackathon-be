@@ -12,6 +12,7 @@ use App\Http\Controllers\Api\InterestGroupController;
 use App\Http\Controllers\Api\MeetupController;
 use App\Http\Controllers\Api\MetaController;
 use App\Http\Controllers\Api\NotificationController;
+use App\Http\Controllers\Api\NudgeController;
 use App\Http\Controllers\Api\OfficeHourController;
 use App\Http\Controllers\Api\OpenInviteController;
 use App\Http\Controllers\Api\QuestController;
@@ -85,6 +86,13 @@ Route::prefix('v1')->group(function () {
 
         Route::get('tags', [TagController::class, 'index']);
         Route::post('tags', [TagController::class, 'store']);
+
+        // Nudges: the poke. You cannot nudge the same person twice in a row —
+        // until they nudge back, it stays their turn.
+        Route::get('me/nudges', [NudgeController::class, 'index']);
+        Route::get('me/nudges/summary', [NudgeController::class, 'summary']);
+        Route::get('users/{user}/nudge', [NudgeController::class, 'show']);
+        Route::post('users/{user}/nudge', [NudgeController::class, 'store']);
 
         Route::get('me/quest', [QuestController::class, 'show']);
         Route::post('me/quest/regenerate', [QuestController::class, 'regenerate']);

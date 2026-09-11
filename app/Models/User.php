@@ -74,6 +74,12 @@ class User extends Authenticatable
         return $this->role === 'admin';
     }
 
+    /** Just the first name, for copy that addresses somebody directly. */
+    public function firstName(): string
+    {
+        return explode(' ', trim($this->name))[0] ?: $this->name;
+    }
+
     public function tags(): BelongsToMany
     {
         return $this->belongsToMany(Tag::class, 'user_tag')->withPivot('kind')->withTimestamps();
@@ -183,6 +189,17 @@ class User extends Authenticatable
     public function unreadNotificationsCount(): int
     {
         return $this->notifications()->inbox()->unread()->count();
+    }
+
+    /** Nudges this person has sent — the poke, one row per tap. */
+    public function sentNudges(): HasMany
+    {
+        return $this->hasMany(Nudge::class, 'sender_id');
+    }
+
+    public function receivedNudges(): HasMany
+    {
+        return $this->hasMany(Nudge::class, 'recipient_id');
     }
 
     /** The buddy pairing currently in force, if any. */

@@ -164,6 +164,10 @@ class DatabaseSeeder extends Seeder
         // Last: everything above writes models directly rather than going through
         // the controllers, so nothing has raised a notification yet.
         $this->call(NotificationSeeder::class);
+
+        // After the backfill, because it raises and dates its own notifications
+        // alongside the nudges they belong to.
+        $this->call(NudgeSeeder::class);
     }
 
     /** The handful of non-Mumbai colleagues every cross-office feature needs. */

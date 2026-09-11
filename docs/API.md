@@ -81,7 +81,8 @@ Each profile carries four independently-editable tag sections: **can_talk_about*
 | Method | Endpoint | Notes |
 |---|---|---|
 | `GET` | `/users` | Search and filter — see below |
-| `GET` | `/users/{id}` | Full profile |
+| `GET` | `/users/{id}` | Full profile, plus `nudge` — where you and they stand (see Nudges) |
+| `POST` | `/users/{id}/nudge` | Nudge them, or nudge back — see Nudges |
 | `PATCH` | `/me` | Update own profile |
 | `PUT` | `/me/tags` | Replace one tag section: `{ kind, tags: ["BigQuery", ...] }` |
 | `GET` | `/tags` | Autocomplete: `?q=&type=skill\|interest&limit=` |
@@ -107,6 +108,34 @@ and each carries a reason for the introduction.
 Scoring favours a person who can help with something you want to learn, then shared interests, then a
 different team, a different location, and longer tenure. At most one suggestion per team until teams run out.
 The quest auto-completes once nothing is `pending`.
+
+## People — Nudges
+
+The old-fashioned poke. No message, no meeting, no agenda — the lowest-effort way to tell a colleague
+you thought of them, and the only reply is the same gesture back.
+
+| Method | Endpoint | Notes |
+|---|---|---|
+| `POST` | `/users/{id}/nudge` | Nudge someone, or nudge them back — same call either way |
+| `GET` | `/users/{id}/nudge` | Where the two of you stand |
+| `GET` | `/me/nudges` | Your exchanges: `scope=all\|sent\|received`, `status=all\|outstanding\|returned`, `per_page` |
+| `GET` | `/me/nudges/summary` | Just the counts, for a badge |
+
+**One rule holds it up: you cannot nudge the same person twice in a row.** Until they nudge back it stays
+their turn, and a second nudge is a `422`. That is what makes a nudge worth something, and it makes nudging
+all ninety-eight people in a loop impossible by construction rather than by rate limit.
+
+Nudging back is not a separate endpoint — whether a nudge counts as a reply depends only on who nudged last,
+so the caller never has to say which it is doing. Answering stamps `returned_at` on their nudge and opens
+yours, one `streak` higher. The streak is the running total for the pair and never resets, so a long-running
+back-and-forth shows as *"That is 6 nudges between you two."*
+
+Every nudge row is told from the point of view of whoever asked: `person` is always the *other* one,
+`direction` is `sent` or `received`, and `waiting_on_you` / `waiting_on_them` say whose turn it is.
+`GET /users/{id}` carries the same state inline as `nudge`, so a profile can draw its button — and know
+whether it says "back" — without a second call.
+
+Nudging yourself, or someone deactivated, is a `422`.
 
 ## Connect — Blind Meetups
 
@@ -384,7 +413,7 @@ it, the `subject` it is about, and an `action_url` that deep-links into the app
 
 | Pillar | Raised when |
 |---|---|
-| People | Your New Joiner Quest is complete |
+| People | Your New Joiner Quest is complete; somebody nudges you |
 | Connect | Someone asks you for a session, or replies to / cancels / completes yours; your Blind Meetup round is matched (or you were left unmatched); you are paired with a cross-location buddy, or your buddy ends it; someone books or cancels on your office hours, or a host cancels a slot you booked; someone joins or leaves your coffee invite, or a host cancels one you joined |
 | Communities | Someone joins your group or your challenge; someone passes you on a challenge leaderboard |
 | Learn & Share | Someone likes your recommendation; someone asks a question at your AMA, or the host answers yours; someone answers or volunteers on your question; your answer is accepted; someone wants your teaching offer, or an offer you wanted gets a date |

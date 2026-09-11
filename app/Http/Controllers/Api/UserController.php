@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
 use App\Http\Resources\UserResource;
+use App\Models\Nudge;
 use App\Models\Tag;
 use App\Models\User;
 use Illuminate\Http\Request;
@@ -80,9 +81,14 @@ class UserController extends Controller
         );
     }
 
-    public function show(User $user): UserResource
+    public function show(Request $request, User $user): UserResource
     {
-        return new UserResource($user->load('tags'));
+        $user->load('tags');
+        // Where the two of you stand on nudges, so a profile can draw its Nudge
+        // button — and know whether it says "back" — without a second call.
+        $user->nudge_state = Nudge::stateFor($request->user()->id, $user->id);
+
+        return new UserResource($user);
     }
 
     public function updateMe(Request $request): UserResource

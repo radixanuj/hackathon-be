@@ -34,6 +34,9 @@ class UserResource extends JsonResource
             'can_help_with' => $this->when($tags !== null, fn () => $this->tagNames('can_help_with')),
             'want_to_learn' => $this->when($tags !== null, fn () => $this->tagNames('want_to_learn')),
             'interests' => $this->when($tags !== null, fn () => $this->tagNames('interest')),
+            // Only on the single-profile endpoint, which is the only place
+            // that can afford the extra lookup per person.
+            'nudge' => $this->when($this->nudge_state !== null, fn () => $this->nudge_state),
             'created_at' => $this->created_at?->toIso8601String(),
         ];
     }
