@@ -110,6 +110,9 @@ class DatabaseSeeder extends Seeder
         // Profiles now have their tags, so an intro can be written around them.
         $this->call(ProfileIntroSeeder::class);
 
+        // And the "Currently into" card, drawn from the same interests.
+        $this->call(CurrentlySeeder::class);
+
         // New Joiner Quest for everyone who just arrived.
         $builder = app(QuestBuilder::class);
         $newJoiners->each(fn (User $user) => $builder->buildFor($user));
