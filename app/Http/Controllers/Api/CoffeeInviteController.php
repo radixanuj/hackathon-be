@@ -150,6 +150,10 @@ class CoffeeInviteController extends Controller
             ->pluck('coffee_invite_id')
             ->all();
 
-        $invites->each(fn (CoffeeInvite $i) => $i->has_joined = in_array($i->id, $joined, true));
+        // A block body, not an arrow: `each` stops when the callback returns
+        // false, which an arrow would do on the first invite you haven't joined.
+        $invites->each(function (CoffeeInvite $i) use ($joined) {
+            $i->has_joined = in_array($i->id, $joined, true);
+        });
     }
 }

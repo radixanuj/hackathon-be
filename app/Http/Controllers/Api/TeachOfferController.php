@@ -214,6 +214,10 @@ class TeachOfferController extends Controller
             ->pluck('teach_offer_id')
             ->all();
 
-        $offers->each(fn (TeachOffer $o) => $o->im_interested = in_array($o->id, $mine, true));
+        // A block body, not an arrow: `each` stops when the callback returns
+        // false, which an arrow would do on the first offer you aren't interested in.
+        $offers->each(function (TeachOffer $o) use ($mine) {
+            $o->im_interested = in_array($o->id, $mine, true);
+        });
     }
 }

@@ -190,6 +190,10 @@ class OpenInviteController extends Controller
             ->pluck('open_invite_id')
             ->all();
 
-        $invites->each(fn (OpenInvite $i) => $i->im_interested = in_array($i->id, $mine, true));
+        // A block body, not an arrow: `each` stops when the callback returns
+        // false, which an arrow would do on the first invite you aren't interested in.
+        $invites->each(function (OpenInvite $i) use ($mine) {
+            $i->im_interested = in_array($i->id, $mine, true);
+        });
     }
 }
