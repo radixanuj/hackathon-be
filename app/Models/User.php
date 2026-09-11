@@ -19,9 +19,39 @@ class User extends Authenticatable
 
     public const TAG_KINDS = ['can_talk_about', 'can_help_with', 'want_to_learn', 'interest'];
 
+    /** "Currently into" stays a glance, not a list. Four lines is already plenty. */
+    public const CURRENTLY_MAX = 4;
+
+    /**
+     * The emoji a "Currently into" line gets when the client doesn't send one.
+     *
+     * Resolved here rather than in the UI so a line written through the API,
+     * the seeder or the profile card all draw the same icon. Labels are open
+     * text, so anything unlisted falls back to the sparkle.
+     */
+    protected const CURRENTLY_ICONS = [
+        'reading' => '📖',
+        'listening to' => '🎧',
+        'watching' => '📺',
+        'training for' => '🏃',
+        'building' => '🛠',
+        'playing' => '🎮',
+        'cooking' => '🥘',
+        'baking' => '🥖',
+        'perfecting' => '🥖',
+        'shooting' => '📷',
+        'following' => '🏏',
+        'planning' => '🗺',
+        'learning' => '🎸',
+        'relearning' => '🛹',
+        'making' => '🏺',
+        'writing' => '✍️',
+        'riding' => '🚴',
+    ];
+
     protected $fillable = [
         'name', 'email', 'password', 'job_title', 'team', 'location', 'timezone',
-        'joined_at', 'intro', 'avatar_url', 'pronouns', 'role', 'is_active',
+        'joined_at', 'intro', 'currently', 'avatar_url', 'pronouns', 'role', 'is_active',
         'open_to_mentoring', 'open_to_blind_meetups', 'is_mentor',
     ];
 
@@ -43,6 +73,7 @@ class User extends Authenticatable
             'email_verified_at' => 'datetime',
             'password' => 'hashed',
             'joined_at' => 'date',
+            'currently' => 'array',
             'is_active' => 'boolean',
             'open_to_mentoring' => 'boolean',
             'open_to_blind_meetups' => 'boolean',
@@ -80,6 +111,33 @@ class User extends Authenticatable
     public function firstName(): string
     {
         return explode(' ', trim($this->name))[0] ?: $this->name;
+    }
+
+    /**
+     * The "Currently into" lines, cleaned up for display.
+     *
+     * Blank rows are dropped rather than stored as empty labels: the card reads
+     * as "Reading: Project Hail Mary", and a half-filled row reads as a bug.
+     *
+     * @return array<int, array{icon: string, label: string, value: string}>
+     */
+    public function currentlyEntries(): array
+    {
+        return collect($this->currently ?? [])
+            ->map(fn ($entry) => [
+                'icon' => trim((string) ($entry['icon'] ?? '')) ?: self::iconFor((string) ($entry['label'] ?? '')),
+                'label' => trim((string) ($entry['label'] ?? '')),
+                'value' => trim((string) ($entry['value'] ?? '')),
+            ])
+            ->filter(fn (array $entry) => $entry['label'] !== '' && $entry['value'] !== '')
+            ->take(self::CURRENTLY_MAX)
+            ->values()
+            ->all();
+    }
+
+    public static function iconFor(string $label): string
+    {
+        return self::CURRENTLY_ICONS[mb_strtolower(trim($label))] ?? '✨';
     }
 
     public function tags(): BelongsToMany

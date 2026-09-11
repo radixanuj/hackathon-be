@@ -24,6 +24,8 @@ class UserResource extends JsonResource
             'tenure_band' => $this->tenureBand(),
             'is_new_joiner' => $this->isNewJoiner(),
             'intro' => $this->intro,
+            // What they're into this month — reading, training for, watching.
+            'currently' => $this->currentlyEntries(),
             'avatar_url' => $this->avatar_url,
             'pronouns' => $this->pronouns,
             'role' => $this->role,

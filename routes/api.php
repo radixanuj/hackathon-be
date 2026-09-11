@@ -83,6 +83,7 @@ Route::prefix('v1')->group(function () {
         Route::get('users/{user}', [UserController::class, 'show']);
         Route::patch('me', [UserController::class, 'updateMe']);
         Route::put('me/tags', [UserController::class, 'syncTags']);
+        Route::put('me/currently', [UserController::class, 'updateCurrently']);
 
         Route::get('tags', [TagController::class, 'index']);
         Route::post('tags', [TagController::class, 'store']);

@@ -248,8 +248,10 @@ class CrowdSeeder extends Seeder
 
     /** After Hrs tab: title, category, who, the line under it, photo, reactions. */
     protected const STORIES = [
+        // Leads the tab: `discover` falls through to reactions_count once tag
+        // matching ties, so the most-reacted story is the one that gets the slab.
         ['Monsoon in Maharashtra is a vibe like no other!', 'travel', 'Devyani Beohar',
-            '', '/photos/monsoon.jpg', 45],
+            '', '/photos/monsoon.jpg', 61],
         // Filed under travel rather than other: the canvas's own line puts it on a
         // hike, and "other" is the category that tags stories as Music.
         ['A crab dragging away its lunch (a snake)', 'travel', 'Shivanshu Srivastava',

@@ -92,6 +92,40 @@ class EmployeeSeeder extends Seeder
         'operations' => 'Operations',
     ];
 
+    /**
+     * The export's own Department column, mapped onto the team names the app files
+     * people under. Every department in the export is listed, so `Str::title` on an
+     * unmapped one only ever catches a department HR adds after this was written.
+     */
+    protected const DEPARTMENT_TEAMS = [
+        'engineering' => 'Engineering',
+        'data science' => 'Data Science',
+        'design' => 'Design',
+        'marketing' => 'Marketing',
+        'brands' => 'Brands',
+        'channel' => 'Channel',
+        'special projects' => 'Special Projects',
+        'people success' => 'People Success',
+        'finance' => 'Finance',
+        'trust & safety' => 'Trust & Safety',
+        'customer success' => 'Customer Success',
+        'corp it' => 'Corp IT',
+        'real estate & workplace' => 'Real Estate & Workplace',
+        'executive management' => 'Executive Management',
+    ];
+
+    /** Office to the timezone people there actually work in. */
+    protected const TIMEZONES = [
+        'Mumbai' => 'Asia/Kolkata',
+        'Dubai' => 'Asia/Dubai',
+        'Cayman' => 'America/Cayman',
+        'Vancouver' => 'America/Vancouver',
+        'Beijing' => 'Asia/Shanghai',
+        'Sau Paulo' => 'America/Sao_Paulo',
+    ];
+
+    protected const DEFAULT_TIMEZONE = 'Asia/Kolkata';
+
     /** Titles carrying no department still belong somewhere. */
     protected const TEAMS_BY_RANK = [
         'chief executive officer' => 'Leadership',
@@ -166,7 +200,7 @@ class EmployeeSeeder extends Seeder
             'job_title' => $person['title'],
             'team' => $this->teamFor($person),
             'location' => $person['location'],
-            'timezone' => 'Asia/Kolkata',
+            'timezone' => $this->timezoneFor($person),
             'role' => $override['role'] ?? 'employee',
             'is_active' => true,
         ]);
@@ -226,22 +260,41 @@ class EmployeeSeeder extends Seeder
     {
         $parts = preg_split('/\s*-\s*/', trim($title), 2);
 
-        $normalise = fn (string $value) => str_replace(' and ', ' & ', mb_strtolower(trim($value)));
+        $normalise = fn (string $value) => $this->normalise($value);
 
         return [
             'rank' => $normalise($parts[0]),
-            'department' => isset($parts[1]) ? $normalise($parts[1]) : null,
+            'titleDepartment' => isset($parts[1]) ? $normalise($parts[1]) : null,
         ];
     }
 
     protected function teamFor(array $person): string
     {
-        if ($person['department'] === null) {
+        // The export names the department outright, so the title is only read where
+        // it doesn't - a department column is a fact, a parsed title is a guess.
+        $department = $this->normalise((string) ($person['department'] ?? ''));
+
+        if ($department !== '') {
+            return self::DEPARTMENT_TEAMS[$department] ?? Str::title($department);
+        }
+
+        if ($person['titleDepartment'] === null) {
             return self::TEAMS_BY_RANK[$person['rank']] ?? 'Leadership';
         }
 
         // An unmapped department becomes its own team rather than a silent null.
-        return self::TEAMS[$person['department']] ?? Str::title($person['department']);
+        return self::TEAMS[$person['titleDepartment']] ?? Str::title($person['titleDepartment']);
+    }
+
+    /** Where the person actually sits, so a Dubai profile doesn't report IST. */
+    protected function timezoneFor(array $person): string
+    {
+        return self::TIMEZONES[$person['location']] ?? self::DEFAULT_TIMEZONE;
+    }
+
+    protected function normalise(string $value): string
+    {
+        return str_replace(' and ', ' & ', mb_strtolower(trim($value)));
     }
 
     /**

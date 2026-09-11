@@ -85,6 +85,7 @@ Each profile carries four independently-editable tag sections: **can_talk_about*
 | `POST` | `/users/{id}/nudge` | Nudge them, or nudge back — see Nudges |
 | `PATCH` | `/me` | Update own profile |
 | `PUT` | `/me/tags` | Replace one tag section: `{ kind, tags: ["BigQuery", ...] }` |
+| `PUT` | `/me/currently` | Replace "Currently into": `{ currently: [{ label: "Reading", value: "Project Hail Mary" }, ...] }` |
 | `GET` | `/tags` | Autocomplete: `?q=&type=skill\|interest&limit=` |
 | `POST` | `/tags` | Create a tag |
 
@@ -93,6 +94,10 @@ Each profile carries four independently-editable tag sections: **can_talk_about*
 `new_joiners`, `open_to_mentoring`.
 
 Every user payload includes `tenure_years`, `tenure_band` and `is_new_joiner`, computed from `joined_at`.
+
+`currently` is the "Currently into" list — up to four `{ icon, label, value }` lines (*Reading: Project Hail
+Mary*) that date a profile on purpose. Labels are open text; `icon` is optional on write and is resolved from
+the label when omitted. Lines with a blank label or value are dropped rather than stored.
 
 ## People — New Joiner Quest
 

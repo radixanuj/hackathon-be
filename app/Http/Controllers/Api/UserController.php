@@ -127,6 +127,32 @@ class UserController extends Controller
     }
 
     /**
+     * Replace the whole "Currently into" list.
+     *
+     * Sent whole, like a tag section: the card is edited as one block of three
+     * or four lines, and a partial write would leave no way to delete a line.
+     */
+    public function updateCurrently(Request $request): UserResource
+    {
+        $user = $request->user();
+
+        $data = $request->validate([
+            'currently' => ['present', 'array', 'max:'.User::CURRENTLY_MAX],
+            'currently.*.label' => ['required', 'string', 'max:40'],
+            'currently.*.value' => ['nullable', 'string', 'max:140'],
+            // Optional: left out, the label picks the icon.
+            'currently.*.icon' => ['nullable', 'string', 'max:8'],
+        ]);
+
+        $user->update(['currently' => $data['currently']]);
+
+        // Store it as it will be read back — blank lines dropped, icons resolved.
+        $user->update(['currently' => $user->currentlyEntries()]);
+
+        return new UserResource($user->fresh()->load('tags'));
+    }
+
+    /**
      * Replace one section of the profile's tags.
      *
      * The four sections - can talk about, can help with, want to learn and

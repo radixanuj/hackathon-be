@@ -142,6 +142,23 @@ class ProfileIntroSeeder extends Seeder
     ];
 
     /** For anyone whose team the export put somewhere we have not written copy for. */
+    /**
+     * The roster files people under the org chart's own department names, which are
+     * finer-grained than the buckets these lines were written for. Without this every
+     * one of those departments would fall through to GENERIC.
+     */
+    protected const TEAM_ALIASES = [
+        'Data Science' => 'Data',
+        'Brands' => 'Marketing',
+        'Channel' => 'Partnerships',
+        'Special Projects' => 'Partnerships',
+        'People Success' => 'People',
+        'Customer Success' => 'Support',
+        'Corp IT' => 'Support',
+        'Real Estate & Workplace' => 'Operations',
+        'Executive Management' => 'Leadership',
+    ];
+
     protected const GENERIC = [
         'A few years in and still finding corners of this place I did not know about.',
         'I like work that involves talking to people outside my own team, so please do interrupt me.',
@@ -216,7 +233,9 @@ class ProfileIntroSeeder extends Seeder
             }
         }
 
-        return $this->pick(self::BY_TEAM[$user->team] ?? self::GENERIC, $user, 'team');
+        $team = self::TEAM_ALIASES[$user->team] ?? $user->team;
+
+        return $this->pick(self::BY_TEAM[$team] ?? self::GENERIC, $user, 'team');
     }
 
     /** One or two of the skills they actually listed, read back as an offer. */

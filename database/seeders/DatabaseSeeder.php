@@ -18,7 +18,6 @@ use App\Services\BlindMeetupMatcher;
 use App\Services\BuddyMatcher;
 use App\Services\QuestBuilder;
 use Illuminate\Database\Seeder;
-use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Str;
 
 /**
@@ -73,38 +72,14 @@ class DatabaseSeeder extends Seeder
     /** Ranks where managing people is part of the job, and so part of the profile. */
     protected const MANAGING_RANKS = ['manager', 'director', 'vice president', 'chief'];
 
-    /**
-     * Colleagues outside Mumbai.
-     *
-     * The org-chart export is a single office, and Cross-location Buddy only pairs
-     * people from different ones - so without these nobody matches and the pillar
-     * demos as an empty state. Written out rather than generated: a faker name with
-     * a faker job title reads as noise next to seventy real colleagues.
-     */
-    protected const ELSEWHERE = [
-        ['Rasha Al Mansoori', 'Senior Manager - Strategic Partnerships', 'Partnerships', 'Dubai',
-            'Eight years in domains, five of them on the registrar side before I switched. Ask me about partner negotiations, or about anything to do with the Gulf market.'],
-        ['Omar Haddad', 'Specialist - Digital Marketing', 'Marketing', 'Dubai',
-            'I run paid acquisition for the MENA region. Spend most of my day in dashboards arguing with attribution. Cricket obsessive, badly.'],
-        ['Eleanor Whitfield', 'Director - Brand Management & Strategy', 'Marketing', 'London',
-            'Came from agency side, which means I am still slightly amazed that we can ship something the week we decide on it. Happy to look at any piece of writing before it goes out.'],
-        ['Tom Bexley', 'Senior Associate - Software Development Engineering', 'Engineering', 'London',
-            'Mostly on the registry integrations. Two years in and I still find new edge cases in EPP. Ask me about Go, or about which pub does a decent roast.'],
-        ['Divya Raghavan', 'Senior Specialist - Data Analytics', 'Data', 'Bengaluru',
-            'I own most of the reporting layer, so if a number looks wrong somewhere it is probably my fault and I would like to know. Learning to play the veena, slowly.'],
-        ['Karthik Menon', 'Manager - Technical Support', 'Support', 'Bengaluru',
-            'Six years of talking to registrars on their worst day. I know where the product genuinely confuses people, and I am always happy to walk a team through it.'],
-    ];
-
     public function run(): void
     {
         $skills = collect(self::SKILLS)->map(fn ($n) => Tag::findOrCreateByName($n, 'skill'));
         $interests = collect(self::INTERESTS)->map(fn ($n) => Tag::findOrCreateByName($n, 'interest'));
 
         // The real roster, so every pillar below is populated by actual colleagues.
+        // It spans six offices, so the cross-office pillars are covered by it too.
         $this->call(EmployeeSeeder::class);
-
-        $this->seedColleaguesElsewhere();
 
         $everyone = User::query()->get();
         $newJoiners = $everyone->filter(fn (User $u) => $u->isNewJoiner());
@@ -169,46 +144,6 @@ class DatabaseSeeder extends Seeder
         // After the backfill, because it raises and dates its own notifications
         // alongside the nudges they belong to.
         $this->call(NudgeSeeder::class);
-    }
-
-    /** The handful of non-Mumbai colleagues every cross-office feature needs. */
-    protected function seedColleaguesElsewhere(): void
-    {
-        $password = Hash::make(config('radix.demo_login.password', 'Radix123'));
-
-        foreach (self::ELSEWHERE as $index => [$name, $title, $team, $location, $intro]) {
-            $user = User::firstOrNew(['email' => Str::slug($name).'@radix.email']);
-
-            $user->fill([
-                'name' => $name,
-                'job_title' => $title,
-                'team' => $team,
-                'location' => $location,
-                'timezone' => match ($location) {
-                    'Dubai' => 'Asia/Dubai',
-                    'London' => 'Europe/London',
-                    default => 'Asia/Kolkata',
-                },
-                'role' => 'employee',
-                'is_active' => true,
-            ]);
-
-            if (! $user->exists) {
-                $user->fill([
-                    'password' => $password,
-                    'email_verified_at' => now(),
-                    'remember_token' => Str::random(10),
-                    'intro' => $intro,
-                    // Tenure spread across the group rather than random, so the Blind
-                    // Meetup senior/junior split has both halves here too.
-                    'joined_at' => now()->subDays(400 + $index * 470)->toDateString(),
-                    'open_to_mentoring' => $index % 3 !== 2,
-                    'open_to_blind_meetups' => true,
-                ]);
-            }
-
-            $user->save();
-        }
     }
 
     protected function seedBuddies($everyone): void
