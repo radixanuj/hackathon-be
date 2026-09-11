@@ -6,6 +6,7 @@ use App\Http\Controllers\Controller;
 use App\Http\Resources\CoffeeInviteResource;
 use App\Models\CoffeeInvite;
 use App\Models\CoffeeInviteJoin;
+use App\Services\Notifier;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Http\Resources\Json\AnonymousResourceCollection;
@@ -19,6 +20,8 @@ use Symfony\Component\HttpKernel\Exception\AccessDeniedHttpException;
  */
 class CoffeeInviteController extends Controller
 {
+    public function __construct(protected Notifier $notifier) {}
+
     public function index(Request $request): AnonymousResourceCollection
     {
         $filters = $request->validate([
@@ -94,6 +97,20 @@ class CoffeeInviteController extends Controller
 
         $invite->update($data);
 
+        if (($data['status'] ?? null) === 'cancelled') {
+            $this->notifier->sendMany(
+                $invite->joins()->pluck('user_id'),
+                'coffee_invite.cancelled',
+                [
+                    'actor' => $request->user(),
+                    'title' => $invite->host->name.' called off the '.$invite->kind,
+                    'body' => $this->inviteLabel($invite),
+                    'subject' => $invite,
+                    'action_url' => '/connect?tab=coffee',
+                ],
+            );
+        }
+
         return response()->json(['data' => new CoffeeInviteResource($invite->fresh()->load('host'))]);
     }
 
@@ -124,15 +141,43 @@ class CoffeeInviteController extends Controller
         $invite->joins()->firstOrCreate(['user_id' => $user->id]);
         $invite->syncJoinsCount();
 
+        $this->notifier->send($invite->host_id, 'coffee_invite.joined', [
+            'actor' => $user,
+            'title' => $user->name.' is joining your '.$invite->kind,
+            'body' => $this->inviteLabel($invite),
+            'subject' => $invite,
+            'action_url' => '/connect?tab=coffee',
+        ]);
+
         return $this->show($request, $invite->fresh());
     }
 
     public function leave(Request $request, CoffeeInvite $invite): JsonResponse
     {
-        $invite->joins()->where('user_id', $request->user()->id)->delete();
+        $left = $invite->joins()->where('user_id', $request->user()->id)->delete();
         $invite->syncJoinsCount();
 
+        // Only worth a notification if they were actually on the list.
+        if ($left) {
+            $this->notifier->send($invite->host_id, 'coffee_invite.left', [
+                'actor' => $request->user(),
+                'title' => $request->user()->name.' dropped out',
+                'body' => $this->inviteLabel($invite),
+                'subject' => $invite,
+                'action_url' => '/connect?tab=coffee',
+            ]);
+        }
+
         return $this->show($request, $invite->fresh());
+    }
+
+    /** "Thursday 1:00pm · Kitchen" — enough to place which invite is meant. */
+    protected function inviteLabel(CoffeeInvite $invite): string
+    {
+        return implode(' · ', array_filter([
+            $invite->starts_at?->format('D j M, g:ia'),
+            $invite->is_virtual ? 'Virtual' : $invite->location,
+        ]));
     }
 
     protected function assertHost(Request $request, CoffeeInvite $invite): void

@@ -8,6 +8,7 @@ use App\Http\Resources\OpenInviteResource;
 use App\Models\Event;
 use App\Models\OpenInvite;
 use App\Models\OpenInviteInterest;
+use App\Services\Notifier;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Http\Resources\Json\AnonymousResourceCollection;
@@ -22,6 +23,8 @@ use Symfony\Component\HttpKernel\Exception\AccessDeniedHttpException;
  */
 class OpenInviteController extends Controller
 {
+    public function __construct(protected Notifier $notifier) {}
+
     public function index(Request $request): AnonymousResourceCollection
     {
         $filters = $request->validate([
@@ -120,8 +123,20 @@ class OpenInviteController extends Controller
             return response()->json(['message' => 'This invite is no longer open.'], 422);
         }
 
-        $invite->interests()->firstOrCreate(['user_id' => $request->user()->id]);
+        $interest = $invite->interests()->firstOrCreate(['user_id' => $request->user()->id]);
         $invite->syncInterestedCount();
+
+        // The whole point of an open invite is watching the count climb, so the
+        // person who floated it hears about each new yes — but only the first time.
+        if ($interest->wasRecentlyCreated) {
+            $this->notifier->send($invite->user_id, 'open_invite.interest', [
+                'actor' => $request->user(),
+                'title' => $request->user()->name.' is in for '.$invite->title,
+                'body' => $invite->fresh()->interested_count.' interested so far.',
+                'subject' => $invite,
+                'action_url' => '/community?tab=events',
+            ]);
+        }
 
         return $this->show($request, $invite->fresh());
     }
@@ -168,6 +183,14 @@ class OpenInviteController extends Controller
         $event->syncGoingCount();
 
         $invite->update(['status' => 'converted', 'event_id' => $event->id]);
+
+        $this->notifier->sendMany($invite->interests()->pluck('user_id'), 'open_invite.converted', [
+            'actor' => $request->user(),
+            'title' => $invite->title.' is happening',
+            'body' => 'It has a date now — '.$event->starts_at->format('D j M, g:ia').". You're RSVP'd.",
+            'subject' => $event,
+            'action_url' => '/community?tab=events',
+        ]);
 
         return response()->json([
             'message' => 'Event created — everyone interested is RSVP\'d.',

@@ -9,6 +9,7 @@ use App\Models\RadixAnswer;
 use App\Models\RadixQuestion;
 use App\Models\RadixVolunteer;
 use App\Models\Tag;
+use App\Services\Notifier;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Http\Resources\Json\AnonymousResourceCollection;
@@ -20,9 +21,16 @@ use Symfony\Component\HttpKernel\Exception\AccessDeniedHttpException;
  * The point is that the asker does not need to know who can help. Tags route the
  * question, and relevant people can either answer in writing or simply volunteer
  * to talk — which is often the more useful of the two.
+ *
+ * That routing is a pull, not a push: matching people find the question through
+ * `for_me` on the index and on their dashboard. Asking a question does not put
+ * anything in fifteen people's inboxes — only replies to your own question, and
+ * acceptance of your own answer, are notified.
  */
 class AskRadixController extends Controller
 {
+    public function __construct(protected Notifier $notifier) {}
+
     public function index(Request $request): AnonymousResourceCollection
     {
         $filters = $request->validate([
@@ -136,6 +144,14 @@ class AskRadixController extends Controller
         $answer = $question->answers()->create($data + ['user_id' => $request->user()->id]);
         $question->syncCounts();
 
+        $this->notifier->send($question->user_id, 'question.answered', [
+            'actor' => $request->user(),
+            'title' => $request->user()->name.' answered your question',
+            'body' => $question->title,
+            'subject' => $question,
+            'action_url' => '/community?tab=ask-teach',
+        ]);
+
         return response()->json([
             'data' => new RadixAnswerResource($answer->load('user')),
         ], 201);
@@ -150,11 +166,21 @@ class AskRadixController extends Controller
 
         $data = $request->validate(['note' => ['nullable', 'string', 'max:300']]);
 
-        $question->volunteers()->updateOrCreate(
+        $volunteer = $question->volunteers()->updateOrCreate(
             ['user_id' => $request->user()->id],
             ['note' => $data['note'] ?? null],
         );
         $question->syncCounts();
+
+        if ($volunteer->wasRecentlyCreated) {
+            $this->notifier->send($question->user_id, 'question.volunteered', [
+                'actor' => $request->user(),
+                'title' => $request->user()->name.' offered to talk it through',
+                'body' => $data['note'] ?? $question->title,
+                'subject' => $question,
+                'action_url' => '/community?tab=ask-teach',
+            ]);
+        }
 
         return $this->show($request, $question->fresh());
     }
@@ -185,6 +211,14 @@ class AskRadixController extends Controller
             'accepted_answer_id' => $answer->id,
             'status' => 'answered',
             'resolved_at' => now(),
+        ]);
+
+        $this->notifier->send($answer->user_id, 'question.answer_accepted', [
+            'actor' => $request->user(),
+            'title' => 'Your answer was the one that helped',
+            'body' => $question->title,
+            'subject' => $question,
+            'action_url' => '/community?tab=ask-teach',
         ]);
 
         return $this->show($request, $question->fresh());

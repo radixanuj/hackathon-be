@@ -329,6 +329,52 @@ Formats: `session`, `workshop`, `walkthrough`. Levels: `any`, `beginner`, `inter
 
 ---
 
+## Notifications
+
+Cross-cutting: every pillar above raises them. You are only ever notified about something you
+already have a stake in — it is yours, you signed up for it, or you were matched with someone.
+Nothing broadcasts to people because a tag or a group looked like a fit; discovery is a pull
+(`/questions?for_me=1`, `/dashboard`, the various lists), not a push.
+
+**Nothing is ever deleted.** `read_at` records that you have seen it and `archived_at` takes it out of
+the inbox; archived notifications stay readable under `?scope=archived` for as long as the account exists.
+There is no `DELETE /notifications/{id}`, by design.
+
+| Method | Endpoint | Notes |
+|---|---|---|
+| `GET` | `/notifications` | `scope=inbox\|archived\|all` (default `inbox`), `status=unread\|read\|all`, `category`, `type`, `per_page`. Paginated, plus a `summary` block alongside `data` |
+| `GET` | `/notifications/summary` | Just the counts — small enough to poll for the bell badge |
+| `PATCH` | `/notifications/{id}/read` | Mark one as read |
+| `DELETE` | `/notifications/{id}/read` | Mark it unread again |
+| `POST` | `/notifications/{id}/archive` | Out of the inbox, into Archived. Implies read |
+| `DELETE` | `/notifications/{id}/archive` | Restore it to the inbox |
+| `POST` | `/notifications/read-all` | Mark the whole inbox read |
+| `POST` | `/notifications/archive-all` | Clear the inbox. `only_read=1` leaves anything still unread in place |
+
+Every write is scoped to the signed-in user with no admin bypass — an inbox is nobody else's to
+manage, so touching someone else's notification is a `403`.
+
+A notification carries `type`, `category`, `icon` (an emoji), `title`, `body`, the `actor` who caused
+it, the `subject` it is about, and an `action_url` that deep-links into the app
+(`/connect?tab=office-hours`, `/community?tab=events`, …). `summary` gives `unread`, `inbox`,
+`archived` and a `by_category` breakdown for the filter pills.
+
+### What raises one
+
+| Pillar | Raised when |
+|---|---|
+| People | Your New Joiner Quest is complete |
+| Connect | Someone asks you for a session, or replies to / cancels / completes yours; your Blind Meetup round is matched (or you were left unmatched); you are paired with a cross-location buddy, or your buddy ends it; someone books or cancels on your office hours, or a host cancels a slot you booked; someone joins or leaves your coffee invite, or a host cancels one you joined |
+| Communities | Someone joins your group or your challenge; someone passes you on a challenge leaderboard |
+| Learn & Share | Someone likes your recommendation; someone asks a question at your AMA, or the host answers yours; someone answers or volunteers on your question; your answer is accepted; someone wants your teaching offer, or an offer you wanted gets a date |
+| Do Together | Someone RSVPs to your event; an event you are attending moves or is cancelled; someone is in for your open invite, or one you wanted becomes a real event |
+| Celebrate | Someone reacts to your story |
+
+The full catalogue of types lives in `App\Models\Notification::TYPES`, and `/meta` returns
+`notification_categories` and `notification_types`.
+
+---
+
 ## Supporting endpoints
 
 | Method | Endpoint | Notes |
@@ -340,6 +386,7 @@ Formats: `session`, `workshop`, `walkthrough`. Levels: `any`, `beginner`, `inter
 | `POST` | `/auth/logout` | Revokes the current token only |
 | `GET` | `/meta` | Every enum, plus the live list of teams and locations |
 | `GET` | `/dashboard` | One call for the home screen, across all six pillars |
+| `GET` | `/notifications` | See the Notifications section above |
 
 ---
 

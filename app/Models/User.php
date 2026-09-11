@@ -167,6 +167,24 @@ class User extends Authenticatable
         return $this->hasMany(SuggestionDismissal::class);
     }
 
+    /**
+     * This person's notification inbox.
+     *
+     * Deliberately shadows the relation Notifiable provides: the app raises its
+     * own App\Models\Notification rows through App\Services\Notifier rather
+     * than going through Laravel's notification channels, and `notifications`
+     * should mean that list everywhere.
+     */
+    public function notifications(): HasMany
+    {
+        return $this->hasMany(Notification::class)->latest('id');
+    }
+
+    public function unreadNotificationsCount(): int
+    {
+        return $this->notifications()->inbox()->unread()->count();
+    }
+
     /** The buddy pairing currently in force, if any. */
     public function activeBuddyPairing(): ?BuddyPairing
     {

@@ -20,6 +20,8 @@ use Illuminate\Support\Facades\DB;
  */
 class BlindMeetupMatcher
 {
+    public function __construct(protected Notifier $notifier) {}
+
     public function match(MeetupRound $round): Collection
     {
         $signups = $round->signups()
@@ -33,7 +35,7 @@ class BlindMeetupMatcher
         $pairs = collect();
         $matchedSignupIds = [];
 
-        return DB::transaction(function () use ($round, $seniors, $juniors, $pairs, $matchedSignupIds) {
+        $result = DB::transaction(function () use ($round, $seniors, $juniors, $pairs, $matchedSignupIds) {
             $round->pairs()->delete();
 
             $availableJuniors = $juniors->all();
@@ -69,6 +71,38 @@ class BlindMeetupMatcher
 
             return $pairs;
         });
+
+        $this->announce($round, $result);
+
+        return $result;
+    }
+
+    /**
+     * Tell everyone where they stand once a round is matched.
+     *
+     * The pair notification withholds the name on purpose — the reveal belongs
+     * to the app, so all this carries is why the two of them were put together.
+     */
+    protected function announce(MeetupRound $round, Collection $pairs): void
+    {
+        foreach ($pairs as $pair) {
+            $this->notifier->sendMany([$pair->user_one_id, $pair->user_two_id], 'meetup.matched', [
+                'title' => 'Your Blind Meetup match is ready',
+                'body' => $pair->match_reason,
+                'subject' => $pair,
+                'action_url' => '/connect?tab=meetup',
+                'data' => ['round' => $round->title, 'meetup_date' => $round->meetup_date?->toDateString()],
+            ]);
+        }
+
+        $unmatched = $round->signups()->where('status', 'unmatched')->pluck('user_id');
+
+        $this->notifier->sendMany($unmatched, 'meetup.unmatched', [
+            'title' => 'No match this round',
+            'body' => 'The pool did not divide evenly — you are first in line for '.$round->title.'.',
+            'subject' => $round,
+            'action_url' => '/connect?tab=meetup',
+        ]);
     }
 
     /** Prefer a partner from a different team, then a different location. */

@@ -22,6 +22,7 @@ use App\Services\BlindMeetupMatcher;
 use App\Services\BuddyMatcher;
 use App\Services\QuestBuilder;
 use Database\Factories\UserFactory;
+use Illuminate\Database\Eloquent\Factories\Sequence;
 use Illuminate\Database\Seeder;
 use Illuminate\Support\Str;
 
@@ -44,19 +45,18 @@ class DatabaseSeeder extends Seeder
         $skills = collect(self::SKILLS)->map(fn ($n) => Tag::findOrCreateByName($n, 'skill'));
         $interests = collect(self::INTERESTS)->map(fn ($n) => Tag::findOrCreateByName($n, 'interest'));
 
-        $admin = User::factory()->admin()->veteran()->create([
-            'name' => 'Anuj Maurya',
-            'email' => 'admin@radix.email',
-            'team' => 'Engineering',
-            'location' => 'Mumbai',
-            'intro' => 'Building Radix Connect. Ask me about backends, hiring and long treks.',
-        ]);
+        // The real roster, so every pillar below is populated by actual colleagues.
+        $this->call(EmployeeSeeder::class);
 
-        $veterans = User::factory()->count(12)->veteran()->create();
-        $regulars = User::factory()->count(20)->create();
-        $newJoiners = User::factory()->count(5)->newJoiner()->create();
+        // The export is one office, but Cross-location Buddy only pairs people from
+        // different ones - a few colleagues elsewhere keep that pillar demoable.
+        User::factory()->count(6)->state(new Sequence(
+            ['location' => 'Mumbai'],
+            ['location' => 'Dubai'],
+        ))->create();
 
-        $everyone = collect([$admin])->concat($veterans)->concat($regulars)->concat($newJoiners);
+        $everyone = User::query()->get();
+        $newJoiners = $everyone->filter(fn (User $u) => $u->isNewJoiner());
 
         // Profiles: the four sections that answer "why talk to this person?"
         $everyone->each(function (User $user) use ($skills, $interests) {
@@ -88,12 +88,20 @@ class DatabaseSeeder extends Seeder
         $this->seedTeachOffers($everyone, $skills);
         $this->seedOpenInvites($everyone);
         $this->tagStories($interests);
+
+        // Last: everything above writes models directly rather than going through
+        // the controllers, so nothing has raised a notification yet.
+        $this->call(NotificationSeeder::class);
     }
 
     protected function seedBuddies($everyone): void
     {
-        // Enough people from different offices that the matcher has real choices.
-        $pool = $everyone->filter(fn (User $u) => $u->location)->shuffle()->take(10);
+        // The matcher only pairs people from different offices, and the roster is mostly
+        // one - so build the pool per office instead of at random, or nobody matches.
+        $pool = $everyone->filter(fn (User $u) => $u->location)
+            ->groupBy('location')
+            ->flatMap(fn ($colleagues) => $colleagues->shuffle()->take(3))
+            ->shuffle();
 
         foreach ($pool as $user) {
             BuddySignup::updateOrCreate(['user_id' => $user->id], ['status' => 'waiting']);

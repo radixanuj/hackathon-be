@@ -10,6 +10,7 @@ use App\Models\Ama;
 use App\Models\AmaQuestion;
 use App\Models\AmaQuestionVote;
 use App\Models\Story;
+use App\Services\Notifier;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Http\Resources\Json\AnonymousResourceCollection;
@@ -19,6 +20,8 @@ use Symfony\Component\HttpKernel\Exception\AccessDeniedHttpException;
 /** AMAs: anyone with interesting experience can host one, async or live. */
 class AmaController extends Controller
 {
+    public function __construct(protected Notifier $notifier) {}
+
     public function index(Request $request): AnonymousResourceCollection
     {
         $filters = $request->validate([
@@ -130,6 +133,14 @@ class AmaController extends Controller
         $question = $ama->questions()->create($data + ['user_id' => $request->user()->id]);
         $ama->syncQuestionsCount();
 
+        $this->notifier->send($ama->host_id, 'ama.question_asked', [
+            'actor' => $request->user(),
+            'title' => $request->user()->name.' asked you something',
+            'body' => $question->body,
+            'subject' => $ama,
+            'action_url' => '/community?tab=learn',
+        ]);
+
         return response()->json([
             'data' => new AmaQuestionResource($question->load('user')),
         ], 201);
@@ -176,6 +187,14 @@ class AmaController extends Controller
         $data = $request->validate(['body' => ['required', 'string', 'max:4000']]);
 
         $answer = $question->answers()->create($data + ['user_id' => $request->user()->id]);
+
+        $this->notifier->send($question->user_id, 'ama.question_answered', [
+            'actor' => $request->user(),
+            'title' => $request->user()->name.' answered your question',
+            'body' => $question->ama->title,
+            'subject' => $question->ama,
+            'action_url' => '/community?tab=learn',
+        ]);
 
         return response()->json(['data' => new AmaAnswerResource($answer->load('user'))], 201);
     }

@@ -17,10 +17,12 @@ use Illuminate\Support\Facades\DB;
  */
 class BuddyMatcher
 {
+    public function __construct(protected Notifier $notifier) {}
+
     /** Pair this signup with a waiting person elsewhere, or leave it waiting. */
     public function matchFor(User $user): ?BuddyPairing
     {
-        return DB::transaction(function () use ($user) {
+        $pairing = DB::transaction(function () use ($user) {
             $signup = BuddySignup::where('user_id', $user->id)->where('status', 'waiting')->first();
 
             if (! $signup) {
@@ -48,6 +50,21 @@ class BuddyMatcher
 
             return $pairing;
         });
+
+        // The person who opted in sees the result in the response; the one who
+        // has been sitting in the pool only finds out through their inbox.
+        if ($pairing) {
+            $partner = $pairing->partnerFor($user->id);
+
+            $this->notifier->send($partner, 'buddy.matched', [
+                'title' => 'You have a buddy in another office',
+                'body' => $user->name.' just joined the pool. '.$pairing->match_reason,
+                'subject' => $pairing,
+                'action_url' => '/connect?tab=buddy',
+            ]);
+        }
+
+        return $pairing;
     }
 
     protected function findPartner(User $user): ?BuddySignup

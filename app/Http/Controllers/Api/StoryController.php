@@ -9,6 +9,7 @@ use App\Models\Ama;
 use App\Models\Story;
 use App\Models\StoryReaction;
 use App\Models\Tag;
+use App\Services\Notifier;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Http\Resources\Json\AnonymousResourceCollection;
@@ -21,6 +22,8 @@ use Symfony\Component\HttpKernel\Exception\AccessDeniedHttpException;
  */
 class StoryController extends Controller
 {
+    public function __construct(protected Notifier $notifier) {}
+
     public function index(Request $request): AnonymousResourceCollection
     {
         $filters = $request->validate([
@@ -116,11 +119,23 @@ class StoryController extends Controller
             'reaction' => ['required', Rule::in(StoryReaction::REACTIONS)],
         ]);
 
-        $story->reactions()->updateOrCreate(
+        $reaction = $story->reactions()->updateOrCreate(
             ['user_id' => $request->user()->id],
             ['reaction' => $data['reaction']],
         );
         $story->syncReactionsCount();
+
+        // Swapping one reaction for another is not a second round of applause.
+        if ($reaction->wasRecentlyCreated) {
+            $this->notifier->send($story->user_id, 'story.reaction', [
+                'actor' => $request->user(),
+                'title' => $request->user()->name.' reacted to your story',
+                'body' => $story->title,
+                'subject' => $story,
+                'action_url' => '/community?tab=stories',
+                'data' => ['reaction' => $data['reaction']],
+            ]);
+        }
 
         return $this->show($request, $story->fresh());
     }

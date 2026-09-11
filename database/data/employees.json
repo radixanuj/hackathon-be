@@ -1,0 +1,491 @@
+[
+  {
+    "fullName": "Anuj Maurya",
+    "title": "Senior Associate - Software Development Engineer",
+    "nickname": "Anuj",
+    "location": "Mumbai",
+    "startDate": "2022-11-05"
+  },
+  {
+    "fullName": "Jeet Dholakia",
+    "title": "Manager - Software Development Engineering",
+    "nickname": "Jeet",
+    "location": "Mumbai",
+    "startDate": "2021-09-11"
+  },
+  {
+    "fullName": "Prakash Shahani",
+    "title": "Senior Director - Software Development Engineering",
+    "nickname": "Prakash",
+    "location": "Mumbai",
+    "startDate": "2015-02-09"
+  },
+  {
+    "fullName": "Suman Das",
+    "title": "Senior Vice President - Brand Management & Strategy",
+    "nickname": "Suman",
+    "location": "Mumbai",
+    "startDate": "2013-12-05"
+  },
+  {
+    "fullName": "Sandeep Ramchandani",
+    "title": "Chief Executive Officer",
+    "nickname": "Sandeep",
+    "location": "Mumbai",
+    "startDate": "2010-04-13"
+  },
+  {
+    "fullName": "Mumbai",
+    "title": "Head of Organization",
+    "nickname": "Mumbai",
+    "location": "Mumbai"
+  },
+  {
+    "fullName": "Harsh Desai",
+    "title": "Senior Manager - Software Development Engineering",
+    "nickname": "Harsh",
+    "location": "Mumbai",
+    "startDate": "2021-01-14"
+  },
+  {
+    "fullName": "Alessandro Dsouza",
+    "title": "Senior Manager - Software Development Engineering",
+    "nickname": "Alessandro",
+    "location": "Mumbai",
+    "startDate": "2022-04-02"
+  },
+  {
+    "fullName": "Sneha Poduval",
+    "title": "Senior Specialist - Software Development Engineering",
+    "nickname": "Sneha",
+    "location": "Mumbai",
+    "startDate": "2023-03-29"
+  },
+  {
+    "fullName": "Saif Khan",
+    "title": "Senior Associate - Software Development Engineering",
+    "nickname": "Saif",
+    "location": "Mumbai",
+    "startDate": "2026-08-26"
+  },
+  {
+    "fullName": "Nishant Shingade",
+    "title": "Senior Specialist- Software Development Engineering",
+    "nickname": "Nishant",
+    "location": "Mumbai",
+    "startDate": "2022-10-25"
+  },
+  {
+    "fullName": "Swati Maheshwari",
+    "title": "Senior Director - MarComm & CI",
+    "nickname": "Swati",
+    "location": "Mumbai",
+    "startDate": "2017-09-26"
+  },
+  {
+    "fullName": "Arjun Pande",
+    "title": "Senior Director - Brand Management & Strategy",
+    "nickname": "Arjun",
+    "location": "Mumbai",
+    "startDate": "2015-08-13"
+  },
+  {
+    "fullName": "Hiranand Mulchandani",
+    "title": "Director - Brand Management & Strategy",
+    "nickname": "Hiranand",
+    "location": "Mumbai",
+    "startDate": "2016-11-12"
+  },
+  {
+    "fullName": "Anish Banerji",
+    "title": "Director - Strategic Programs",
+    "nickname": "Anish",
+    "location": "Mumbai",
+    "startDate": "2015-11-24"
+  },
+  {
+    "fullName": "Rutuja Pawar",
+    "title": "Specialist - Content Marketing & Communication",
+    "nickname": "Rutuja",
+    "location": "Mumbai",
+    "startDate": "2023-09-26"
+  },
+  {
+    "fullName": "Tasmiya Sayed",
+    "title": "Senior Specialist- Content Marketing & Communication",
+    "nickname": "Tasmiya",
+    "location": "Mumbai",
+    "startDate": "2026-08-24"
+  },
+  {
+    "fullName": "Shubham Kumbhar",
+    "title": "Senior Specialist - Consumer Insights Marketing",
+    "nickname": "Shubham",
+    "location": "Mumbai",
+    "startDate": "2024-01-22"
+  },
+  {
+    "fullName": "Naila Kazi",
+    "title": "Associate Director - Brand Marketing",
+    "nickname": "Naila",
+    "location": "Mumbai",
+    "startDate": "2020-03-14"
+  },
+  {
+    "fullName": "Harsha Balwani",
+    "title": "Manager - Brand Marketing",
+    "nickname": "Harsha",
+    "location": "Mumbai",
+    "startDate": "2023-08-31"
+  },
+  {
+    "fullName": "Ragini Katyal",
+    "title": "Senior Specialist - Brand Marketing",
+    "nickname": "Ragini",
+    "location": "Mumbai",
+    "startDate": "2022-01-22"
+  },
+  {
+    "fullName": "Maithili Shinde",
+    "title": "Senior Specialist - Strategic Programs",
+    "nickname": "Maithili",
+    "location": "Mumbai",
+    "startDate": "2021-10-14"
+  },
+  {
+    "fullName": "Kuldeep Singh",
+    "title": "Senior Manager - Technical Support",
+    "nickname": "Kuldeep",
+    "location": "Mumbai",
+    "startDate": "2021-11-05"
+  },
+  {
+    "fullName": "Rishabh Bhagwat",
+    "title": "Specialist - Brand Marketing",
+    "nickname": "Rishabh",
+    "location": "Mumbai",
+    "startDate": "2023-12-31"
+  },
+  {
+    "fullName": "Neha Naik",
+    "title": "Senior Vice President - Strategic Partnerships",
+    "nickname": "Neha",
+    "location": "Mumbai",
+    "startDate": "2012-08-30"
+  },
+  {
+    "fullName": "Namrata Arya",
+    "title": "Senior Director - Online Marketing & AI Strategy",
+    "nickname": "Namrata",
+    "location": "Mumbai",
+    "startDate": "2016-06-21"
+  },
+  {
+    "fullName": "Arun Seshadri",
+    "title": "Vice President - People Success",
+    "nickname": "Arun",
+    "location": "Mumbai",
+    "startDate": "2013-10-29"
+  },
+  {
+    "fullName": "Parag Barhate",
+    "title": "Senior Director - Data Sciences",
+    "nickname": "Parag",
+    "location": "Mumbai",
+    "startDate": "2017-11-20"
+  },
+  {
+    "fullName": "Viram Lodhia",
+    "title": "Senior Director - Marquee Partnerships",
+    "nickname": "Viram",
+    "location": "Mumbai",
+    "startDate": "2017-03-07"
+  },
+  {
+    "fullName": "Karn Jajoo",
+    "title": "Senior Director - Premium Domains",
+    "nickname": "Karn",
+    "location": "Mumbai",
+    "startDate": "2016-07-10"
+  },
+  {
+    "fullName": "Arjava Vig",
+    "title": "Senior Director- Creative and Marketing Strategy",
+    "nickname": "Arjava",
+    "location": "Mumbai",
+    "startDate": "2016-09-03"
+  },
+  {
+    "fullName": "Vishal Pansari",
+    "title": "Senior Director - Finance",
+    "nickname": "Vishal",
+    "location": "Mumbai",
+    "startDate": "2014-11-09"
+  },
+  {
+    "fullName": "Shweta Asher",
+    "title": "Consultant",
+    "nickname": "Shweta",
+    "location": "Mumbai",
+    "startDate": "2025-05-23"
+  },
+  {
+    "fullName": "Neha Vijay Nair",
+    "title": "Senior Director - Trust & Safety",
+    "nickname": "Neha",
+    "location": "Mumbai",
+    "startDate": "2015-05-12"
+  },
+  {
+    "fullName": "Kenneth Fan",
+    "title": "Consultant",
+    "nickname": "Kenneth",
+    "location": "Mumbai",
+    "startDate": "2025-07-28"
+  },
+  {
+    "fullName": "Joel Rasquinha",
+    "title": "Senior Director - Strategic Partnerships",
+    "nickname": "Joel",
+    "location": "Mumbai",
+    "startDate": "2018-05-23"
+  },
+  {
+    "fullName": "Varun Punjabi",
+    "title": "Senior Director - Strategic Partnerships",
+    "nickname": "Varun",
+    "location": "Mumbai",
+    "startDate": "2014-04-02"
+  },
+  {
+    "fullName": "Erica Saito",
+    "title": "Consultant",
+    "nickname": "Erica",
+    "location": "Mumbai",
+    "startDate": "2023-10-26"
+  },
+  {
+    "fullName": "Manbir Chawla",
+    "title": "Associate Director - Business Strategy & Program Management",
+    "nickname": "Manbir",
+    "location": "Mumbai",
+    "startDate": "2019-12-01"
+  },
+  {
+    "fullName": "Sahar Khan",
+    "title": "Associate Director - Strategic Partnerships",
+    "nickname": "Sahar",
+    "location": "Mumbai",
+    "startDate": "2017-11-24"
+  },
+  {
+    "fullName": "Clifford DeSouza",
+    "title": "Director - Channel Marketing",
+    "nickname": "Clifford",
+    "location": "Mumbai",
+    "startDate": "2018-04-13"
+  },
+  {
+    "fullName": "Tania Castelino",
+    "title": "Associate Director - Strategic Partnerships",
+    "nickname": "Tania",
+    "location": "Mumbai",
+    "startDate": "2021-04-01"
+  },
+  {
+    "fullName": "Divya Bakshi",
+    "title": "Senior Manager - Strategic Partnerships",
+    "nickname": "Divya",
+    "location": "Mumbai",
+    "startDate": "2021-06-25"
+  },
+  {
+    "fullName": "Pratik Sane",
+    "title": "Senior Manager - Digital Marketing",
+    "nickname": "Pratik",
+    "location": "Mumbai",
+    "startDate": "2019-10-29"
+  },
+  {
+    "fullName": "Jignesh Nivate",
+    "title": "Senior Associate - Operations",
+    "nickname": "Jignesh",
+    "location": "Mumbai",
+    "startDate": "2025-07-28"
+  },
+  {
+    "fullName": "Swapnil Kadam",
+    "title": "Senior Manager - UI Design",
+    "nickname": "Swapnil",
+    "location": "Mumbai",
+    "startDate": "2019-01-22"
+  },
+  {
+    "fullName": "Rahul Thakkar",
+    "title": "Senior Specialist - Digital Marketing",
+    "nickname": "Rahul",
+    "location": "Mumbai",
+    "startDate": "2026-08-19"
+  },
+  {
+    "fullName": "Mayur Ghadi",
+    "title": "Senior Specialist - Software Development Engineer",
+    "nickname": "Mayur",
+    "location": "Mumbai",
+    "startDate": "2026-08-17"
+  },
+  {
+    "fullName": "Leonard Dass",
+    "title": "Associate Director - Project Management",
+    "nickname": "Leonard",
+    "location": "Mumbai",
+    "startDate": "2019-07-07"
+  },
+  {
+    "fullName": "Anita Ramachandran",
+    "title": "Director - People Success",
+    "nickname": "Anita",
+    "location": "Mumbai",
+    "startDate": "2018-10-22"
+  },
+  {
+    "fullName": "Priyanka Panchmatia",
+    "title": "Senior Director - Brand Management & Strategy",
+    "nickname": "Priyanka",
+    "location": "Mumbai",
+    "startDate": "2016-06-21"
+  },
+  {
+    "fullName": "Shahbaaz Rupani",
+    "title": "Associate Director - Talent Management",
+    "nickname": "Shahbaaz",
+    "location": "Mumbai",
+    "startDate": "2019-09-19"
+  },
+  {
+    "fullName": "Aqueeb Mohammad",
+    "title": "Senior Manager - Strategic Programs",
+    "nickname": "Aqueeb",
+    "location": "Mumbai",
+    "startDate": "2020-06-07"
+  },
+  {
+    "fullName": "Minita Sodhi",
+    "title": "Senior Specialist- Talent Acquisition",
+    "nickname": "Minita",
+    "location": "Mumbai",
+    "startDate": "2026-08-16"
+  },
+  {
+    "fullName": "Bhavesh Bhide",
+    "title": "Director - Software Development Engineering",
+    "nickname": "Bhavesh",
+    "location": "Mumbai",
+    "startDate": "2017-12-01"
+  },
+  {
+    "fullName": "Shradhanand Tidake",
+    "title": "Senior Manager - Data Analytics",
+    "nickname": "Shradhanand",
+    "location": "Mumbai",
+    "startDate": "2020-08-19"
+  },
+  {
+    "fullName": "Rushabh Vora",
+    "title": "Senior Manager - Data Analytics",
+    "nickname": "Rushabh",
+    "location": "Mumbai",
+    "startDate": "2019-04-06"
+  },
+  {
+    "fullName": "Mohit Panse",
+    "title": "Associate Director - Data Visualization",
+    "nickname": "Mohit",
+    "location": "Mumbai",
+    "startDate": "2021-02-01"
+  },
+  {
+    "fullName": "Shivanshu Shrivastava",
+    "title": "Associate Director - Data Science",
+    "nickname": "Shivanshu",
+    "location": "Mumbai",
+    "startDate": "2018-11-13"
+  },
+  {
+    "fullName": "Avaneesh Sharma",
+    "title": "Senior Manager - Data Analytics",
+    "nickname": "Avaneesh",
+    "location": "Mumbai",
+    "startDate": "2020-08-05"
+  },
+  {
+    "fullName": "Ramyashree Shetty",
+    "title": "Senior Associate - Data Sciences",
+    "nickname": "Ramyashree",
+    "location": "Mumbai",
+    "startDate": "2022-12-31"
+  },
+  {
+    "fullName": "Marina Manuel",
+    "title": "Manager - Marqee Partnerships",
+    "nickname": "Marina",
+    "location": "Mumbai",
+    "startDate": "2023-08-09"
+  },
+  {
+    "fullName": "Thomas Self",
+    "title": "Senior Director - Marquee Partnerships",
+    "nickname": "Thomas",
+    "location": "Mumbai",
+    "startDate": "2014-08-27"
+  },
+  {
+    "fullName": "Soham Gidwani",
+    "title": "Associate Director - Premium Domains",
+    "nickname": "Soham",
+    "location": "Mumbai",
+    "startDate": "2018-01-22"
+  },
+  {
+    "fullName": "Ankit Dembla",
+    "title": "Associate Director - Visual Design",
+    "nickname": "Ankit",
+    "location": "Mumbai",
+    "startDate": "2017-11-09"
+  },
+  {
+    "fullName": "Snovy D'Souza",
+    "title": "Senior Manager - Finance",
+    "nickname": "Snovy",
+    "location": "Mumbai",
+    "startDate": "2018-11-24"
+  },
+  {
+    "fullName": "Lanson D'souza",
+    "title": "Senior Associate-Finance",
+    "nickname": "Lanson",
+    "location": "Mumbai",
+    "startDate": "2025-08-09"
+  },
+  {
+    "fullName": "Abhishek Singh",
+    "title": "Senior Manager - Financial Strategy & Business Analysis",
+    "nickname": "Abhishek",
+    "location": "Mumbai",
+    "startDate": "2019-03-07"
+  },
+  {
+    "fullName": "Anu Somarajan",
+    "title": "Senior Manager - Trust & Safety",
+    "nickname": "Anu",
+    "location": "Mumbai",
+    "startDate": "2019-11-13"
+  },
+  {
+    "fullName": "Aman Masjide",
+    "title": "Consulting Advisor - Trust and safety",
+    "nickname": "Aman",
+    "location": "Mumbai",
+    "startDate": "2023-09-11"
+  }
+]

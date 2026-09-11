@@ -6,6 +6,7 @@ use App\Http\Controllers\Controller;
 use App\Http\Resources\RecommendationResource;
 use App\Models\Recommendation;
 use App\Models\RecommendationLike;
+use App\Services\Notifier;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Http\Resources\Json\AnonymousResourceCollection;
@@ -15,6 +16,8 @@ use Symfony\Component\HttpKernel\Exception\AccessDeniedHttpException;
 /** Recommendation Corner: two streams, Work and Leisure, each with a "why". */
 class RecommendationController extends Controller
 {
+    public function __construct(protected Notifier $notifier) {}
+
     public function index(Request $request): AnonymousResourceCollection
     {
         $filters = $request->validate([
@@ -103,8 +106,19 @@ class RecommendationController extends Controller
 
     public function like(Request $request, Recommendation $recommendation): JsonResponse
     {
-        $recommendation->likes()->firstOrCreate(['user_id' => $request->user()->id]);
+        $like = $recommendation->likes()->firstOrCreate(['user_id' => $request->user()->id]);
         $recommendation->syncLikesCount();
+
+        // Liking, unliking and liking again should not notify three times.
+        if ($like->wasRecentlyCreated) {
+            $this->notifier->send($recommendation->user_id, 'recommendation.liked', [
+                'actor' => $request->user(),
+                'title' => $request->user()->name.' liked your recommendation',
+                'body' => $recommendation->title,
+                'subject' => $recommendation,
+                'action_url' => '/community?tab=learn',
+            ]);
+        }
 
         return $this->show($request, $recommendation->fresh());
     }

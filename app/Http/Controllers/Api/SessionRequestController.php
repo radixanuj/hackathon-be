@@ -6,6 +6,7 @@ use App\Http\Controllers\Controller;
 use App\Http\Resources\SessionRequestResource;
 use App\Models\SessionRequest;
 use App\Models\User;
+use App\Services\Notifier;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Http\Resources\Json\AnonymousResourceCollection;
@@ -19,6 +20,8 @@ use Symfony\Component\HttpKernel\Exception\AccessDeniedHttpException;
  */
 class SessionRequestController extends Controller
 {
+    public function __construct(protected Notifier $notifier) {}
+
     public function index(Request $request): AnonymousResourceCollection
     {
         $filters = $request->validate([
@@ -74,6 +77,14 @@ class SessionRequestController extends Controller
             'duration_minutes' => $data['duration_minutes'] ?? 30,
         ]);
 
+        $this->notifier->send($recipient, 'session_request.received', [
+            'actor' => $requester,
+            'title' => $requester->name.' asked you for '.$sessionRequest->duration_minutes.' minutes',
+            'body' => $sessionRequest->topic,
+            'subject' => $sessionRequest,
+            'action_url' => '/connect?tab=mentoring',
+        ]);
+
         return response()->json([
             'data' => new SessionRequestResource($sessionRequest->load(['requester', 'recipient', 'tag'])),
         ], 201);
@@ -114,6 +125,25 @@ class SessionRequestController extends Controller
             'responded_at' => now(),
         ]);
 
+        $responder = $request->user();
+        $when = $sessionRequest->fresh()->scheduled_at?->format('D j M, g:ia');
+
+        $this->notifier->send($sessionRequest->requester_id, 'session_request.'.$status, [
+            'actor' => $responder,
+            'title' => match ($data['action']) {
+                'accept' => $responder->name.' said yes',
+                'decline' => $responder->name.' passed on your request',
+                'suggest_time' => $responder->name.' suggested another time',
+            },
+            'body' => match ($data['action']) {
+                'accept' => $sessionRequest->topic.($when ? ' — '.$when : ''),
+                'decline' => $data['response_message'] ?? $sessionRequest->topic,
+                'suggest_time' => $when ? 'How about '.$when.'?' : $sessionRequest->topic,
+            },
+            'subject' => $sessionRequest,
+            'action_url' => '/connect?tab=mentoring',
+        ]);
+
         return response()->json([
             'data' => new SessionRequestResource($sessionRequest->fresh()->load(['requester', 'recipient', 'tag'])),
         ]);
@@ -133,6 +163,22 @@ class SessionRequestController extends Controller
         }
 
         $sessionRequest->update(['status' => $data['status']]);
+
+        // Whichever side did it, the other one is the one who needs telling.
+        $actor = $request->user();
+        $other = $sessionRequest->requester_id === $actor->id
+            ? $sessionRequest->recipient_id
+            : $sessionRequest->requester_id;
+
+        $this->notifier->send($other, 'session_request.'.$data['status'], [
+            'actor' => $actor,
+            'title' => $data['status'] === 'cancelled'
+                ? $actor->name.' cancelled your session'
+                : $actor->name.' marked your session as done',
+            'body' => $sessionRequest->topic,
+            'subject' => $sessionRequest,
+            'action_url' => '/connect?tab=mentoring',
+        ]);
 
         return response()->json([
             'data' => new SessionRequestResource($sessionRequest->fresh()->load(['requester', 'recipient', 'tag'])),

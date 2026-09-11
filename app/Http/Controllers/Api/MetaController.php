@@ -9,6 +9,7 @@ use App\Models\CoffeeInvite;
 use App\Models\Event;
 use App\Models\EventRsvp;
 use App\Models\InterestGroup;
+use App\Models\Notification;
 use App\Models\Recommendation;
 use App\Models\SessionRequest;
 use App\Models\Story;
@@ -47,6 +48,10 @@ class MetaController extends Controller
                 'teach_levels' => TeachOffer::LEVELS,
                 'question_statuses' => ['open', 'answered', 'closed'],
                 'open_invite_categories' => Event::CATEGORIES,
+
+                // Notifications
+                'notification_categories' => Notification::CATEGORIES,
+                'notification_types' => array_keys(Notification::TYPES),
             ],
         ]);
     }

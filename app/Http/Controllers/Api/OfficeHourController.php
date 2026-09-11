@@ -7,6 +7,7 @@ use App\Http\Resources\OfficeHourBookingResource;
 use App\Http\Resources\OfficeHourSlotResource;
 use App\Models\OfficeHourBooking;
 use App\Models\OfficeHourSlot;
+use App\Services\Notifier;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Http\Resources\Json\AnonymousResourceCollection;
@@ -20,6 +21,8 @@ use Symfony\Component\HttpKernel\Exception\AccessDeniedHttpException;
  */
 class OfficeHourController extends Controller
 {
+    public function __construct(protected Notifier $notifier) {}
+
     public function index(Request $request): AnonymousResourceCollection
     {
         $filters = $request->validate([
@@ -93,6 +96,20 @@ class OfficeHourController extends Controller
 
         $slot->update($data);
 
+        if (($data['status'] ?? null) === 'cancelled') {
+            $this->notifier->sendMany(
+                $slot->bookings()->where('status', 'booked')->pluck('user_id'),
+                'office_hours.slot_cancelled',
+                [
+                    'actor' => $request->user(),
+                    'title' => $slot->host->name.' cancelled their office hours',
+                    'body' => $this->slotLabel($slot),
+                    'subject' => $slot,
+                    'action_url' => '/connect?tab=office-hours',
+                ],
+            );
+        }
+
         return response()->json(['data' => new OfficeHourSlotResource($slot->fresh()->load('host'))]);
     }
 
@@ -130,6 +147,14 @@ class OfficeHourController extends Controller
         );
         $slot->syncBookingsCount();
 
+        $this->notifier->send($slot->host_id, 'office_hours.booked', [
+            'actor' => $user,
+            'title' => $user->name.' booked your office hours',
+            'body' => $data['topic'] ?? $this->slotLabel($slot),
+            'subject' => $slot,
+            'action_url' => '/connect?tab=office-hours',
+        ]);
+
         return $this->show($request, $slot->fresh());
     }
 
@@ -143,6 +168,14 @@ class OfficeHourController extends Controller
 
         $booking->update(['status' => 'cancelled']);
         $slot->syncBookingsCount();
+
+        $this->notifier->send($slot->host_id, 'office_hours.booking_cancelled', [
+            'actor' => $request->user(),
+            'title' => $request->user()->name.' cancelled their booking',
+            'body' => $this->slotLabel($slot).' — that seat is free again.',
+            'subject' => $slot,
+            'action_url' => '/connect?tab=office-hours',
+        ]);
 
         return $this->show($request, $slot->fresh());
     }
@@ -158,6 +191,12 @@ class OfficeHourController extends Controller
             ->paginate($request->integer('per_page', 20));
 
         return OfficeHourBookingResource::collection($bookings);
+    }
+
+    /** "Tuesday 3:00pm" — enough to recognise which slot is meant. */
+    protected function slotLabel(OfficeHourSlot $slot): string
+    {
+        return trim(($slot->title ? $slot->title.' · ' : '').$slot->starts_at?->format('D j M, g:ia'));
     }
 
     protected function assertHost(Request $request, OfficeHourSlot $slot): void

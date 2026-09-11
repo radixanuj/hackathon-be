@@ -8,6 +8,7 @@ use App\Http\Resources\BuddySignupResource;
 use App\Models\BuddyPairing;
 use App\Models\BuddySignup;
 use App\Services\BuddyMatcher;
+use App\Services\Notifier;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Symfony\Component\HttpKernel\Exception\AccessDeniedHttpException;
@@ -20,6 +21,8 @@ use Symfony\Component\HttpKernel\Exception\AccessDeniedHttpException;
  */
 class BuddyController extends Controller
 {
+    public function __construct(protected Notifier $notifier) {}
+
     public function show(Request $request): JsonResponse
     {
         $user = $request->user();
@@ -103,6 +106,14 @@ class BuddyController extends Controller
         }
 
         $pairing->update(['status' => 'ended', 'ended_at' => now()]);
+
+        $this->notifier->send($pairing->partnerFor($request->user()->id), 'buddy.ended', [
+            'actor' => $request->user(),
+            'title' => $request->user()->name.' wrapped up your buddy pairing',
+            'body' => 'You can opt back into the pool whenever you like.',
+            'subject' => $pairing,
+            'action_url' => '/connect?tab=buddy',
+        ]);
 
         return response()->json([
             'data' => new BuddyPairingResource($pairing->fresh()->load(['userOne', 'userTwo'])),

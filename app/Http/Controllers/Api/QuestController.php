@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Api;
 use App\Http\Controllers\Controller;
 use App\Http\Resources\QuestResource;
 use App\Models\QuestTarget;
+use App\Services\Notifier;
 use App\Services\QuestBuilder;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
@@ -13,6 +14,8 @@ use Symfony\Component\HttpKernel\Exception\AccessDeniedHttpException;
 
 class QuestController extends Controller
 {
+    public function __construct(protected Notifier $notifier) {}
+
     /** The signed-in user's New Joiner Quest, built on first request if missing. */
     public function show(Request $request, QuestBuilder $builder): JsonResponse
     {
@@ -53,7 +56,18 @@ class QuestController extends Controller
             'met_at' => $data['status'] === 'met' ? now() : null,
         ]);
 
+        $wasActive = $quest->status === 'active';
         $quest->refreshCompletion();
+
+        // No actor — this is the app congratulating you on your own quest.
+        if ($wasActive && $quest->fresh()->status === 'completed') {
+            $this->notifier->send($quest->user_id, 'quest.completed', [
+                'title' => 'New Joiner Quest complete',
+                'body' => "You've been through everyone on your list. Nicely done.",
+                'subject' => $quest,
+                'action_url' => '/me',
+            ]);
+        }
 
         return response()->json([
             'data' => new QuestResource($quest->fresh()->load('targets.targetUser')),

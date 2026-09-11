@@ -11,6 +11,7 @@ use App\Http\Controllers\Api\EventController;
 use App\Http\Controllers\Api\InterestGroupController;
 use App\Http\Controllers\Api\MeetupController;
 use App\Http\Controllers\Api\MetaController;
+use App\Http\Controllers\Api\NotificationController;
 use App\Http\Controllers\Api\OfficeHourController;
 use App\Http\Controllers\Api\OpenInviteController;
 use App\Http\Controllers\Api\QuestController;
@@ -42,6 +43,9 @@ use Illuminate\Support\Facades\Route;
 |   Learn & Share         -> Ask Radix, Teach Radix
 |   Do Together           -> Open Invites
 |   Celebrate & Discover  -> story tags and interest-led discovery
+|
+| Notifications cut across all six: anything that happens to you, or to
+| something of yours, lands in your inbox and is archived rather than deleted.
 */
 
 Route::prefix('v1')->group(function () {
@@ -58,6 +62,18 @@ Route::prefix('v1')->group(function () {
 
         Route::get('meta', MetaController::class);
         Route::get('dashboard', DashboardController::class);
+
+        // --- Notifications ---------------------------------------------------
+        // Cross-cutting: every pillar below raises them. Nothing is deletable —
+        // archiving is as far as it goes, and archived rows stay readable.
+        Route::get('notifications', [NotificationController::class, 'index']);
+        Route::get('notifications/summary', [NotificationController::class, 'summary']);
+        Route::post('notifications/read-all', [NotificationController::class, 'readAll']);
+        Route::post('notifications/archive-all', [NotificationController::class, 'archiveAll']);
+        Route::patch('notifications/{notification}/read', [NotificationController::class, 'markRead']);
+        Route::delete('notifications/{notification}/read', [NotificationController::class, 'markUnread']);
+        Route::post('notifications/{notification}/archive', [NotificationController::class, 'archive']);
+        Route::delete('notifications/{notification}/archive', [NotificationController::class, 'unarchive']);
 
         // --- People ----------------------------------------------------------
         Route::get('users', [UserController::class, 'index']);

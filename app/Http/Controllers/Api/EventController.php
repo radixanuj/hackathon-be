@@ -7,6 +7,7 @@ use App\Http\Resources\EventResource;
 use App\Http\Resources\EventRsvpResource;
 use App\Models\Event;
 use App\Models\EventRsvp;
+use App\Services\Notifier;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Http\Resources\Json\AnonymousResourceCollection;
@@ -16,6 +17,8 @@ use Symfony\Component\HttpKernel\Exception\AccessDeniedHttpException;
 /** Do Together: anyone creates an activity, Radix Connect does discovery + RSVPs. */
 class EventController extends Controller
 {
+    public function __construct(protected Notifier $notifier) {}
+
     public function index(Request $request): AnonymousResourceCollection
     {
         $filters = $request->validate([
@@ -80,6 +83,10 @@ class EventController extends Controller
         $event->rsvps()->create(['user_id' => $request->user()->id, 'status' => 'going']);
         $event->syncGoingCount();
 
+        // Deliberately no notification here. A new event is something people
+        // find in the events list, not something that should land in every group
+        // member's inbox. Only those who RSVP hear about it again — see update().
+
         return response()->json([
             'data' => new EventResource($event->fresh()->load(['host', 'group'])),
         ], 201);
@@ -110,7 +117,19 @@ class EventController extends Controller
             'status' => ['sometimes', Rule::in(['draft', 'published', 'cancelled', 'completed'])],
         ]);
 
+        $movedTo = isset($data['starts_at']) && ! $event->starts_at->equalTo($data['starts_at'])
+            ? $data['starts_at']
+            : null;
+
         $event->update($data);
+        $event->refresh();
+
+        // Anyone who said they were coming has planned around this.
+        if (($data['status'] ?? null) === 'cancelled') {
+            $this->notifyAttendees($request, $event, 'event.cancelled', $event->title.' was cancelled', $this->eventWhen($event));
+        } elseif ($movedTo) {
+            $this->notifyAttendees($request, $event, 'event.updated', $event->title.' moved', 'Now '.$this->eventWhen($event));
+        }
 
         return response()->json([
             'data' => new EventResource($event->fresh()->load(['host', 'group'])),
@@ -144,6 +163,21 @@ class EventController extends Controller
         $event->rsvps()->updateOrCreate(['user_id' => $request->user()->id], ['status' => $data['status']]);
         $event->syncGoingCount();
 
+        // Only a change of heart is worth a second notification.
+        if ($existing?->status !== $data['status']) {
+            $this->notifier->send($event->host_id, 'event.rsvp', [
+                'actor' => $request->user(),
+                'title' => $request->user()->name.' '.match ($data['status']) {
+                    'going' => 'is coming to',
+                    'maybe' => 'might come to',
+                    'not_going' => 'cannot make',
+                }.' '.$event->title,
+                'body' => $event->going_count.' going so far.',
+                'subject' => $event,
+                'action_url' => '/community?tab=events',
+            ]);
+        }
+
         return $this->show($request, $event->fresh());
     }
 
@@ -155,6 +189,30 @@ class EventController extends Controller
             ->paginate($request->integer('per_page', 50));
 
         return EventRsvpResource::collection($rsvps);
+    }
+
+    /** Everyone holding a going/maybe RSVP, minus whoever triggered the change. */
+    protected function notifyAttendees(Request $request, Event $event, string $type, string $title, ?string $body): void
+    {
+        $this->notifier->sendMany(
+            $event->rsvps()->whereIn('status', ['going', 'maybe'])->pluck('user_id'),
+            $type,
+            [
+                'actor' => $request->user(),
+                'title' => $title,
+                'body' => $body,
+                'subject' => $event,
+                'action_url' => '/community?tab=events',
+            ],
+        );
+    }
+
+    protected function eventWhen(Event $event): string
+    {
+        return implode(' · ', array_filter([
+            $event->starts_at?->format('D j M, g:ia'),
+            $event->is_virtual ? 'Virtual' : $event->location,
+        ]));
     }
 
     protected function assertHost(Request $request, Event $event): void

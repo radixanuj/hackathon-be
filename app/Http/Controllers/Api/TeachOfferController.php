@@ -9,6 +9,7 @@ use App\Models\Event;
 use App\Models\Tag;
 use App\Models\TeachOffer;
 use App\Models\TeachOfferInterest;
+use App\Services\Notifier;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Http\Resources\Json\AnonymousResourceCollection;
@@ -25,6 +26,8 @@ use Symfony\Component\HttpKernel\Exception\AccessDeniedHttpException;
  */
 class TeachOfferController extends Controller
 {
+    public function __construct(protected Notifier $notifier) {}
+
     public function index(Request $request): AnonymousResourceCollection
     {
         $filters = $request->validate([
@@ -133,8 +136,23 @@ class TeachOfferController extends Controller
             return response()->json(['message' => 'This offer is no longer open.'], 422);
         }
 
-        $offer->interests()->firstOrCreate(['user_id' => $request->user()->id]);
+        $interest = $offer->interests()->firstOrCreate(['user_id' => $request->user()->id]);
         $offer->syncInterestedCount();
+
+        if ($interest->wasRecentlyCreated) {
+            $fresh = $offer->fresh();
+            $short = $fresh->interested_count < $fresh->min_interested
+                ? ($fresh->min_interested - $fresh->interested_count).' more and you can put a date on it.'
+                : 'That is enough interest — you can schedule it now.';
+
+            $this->notifier->send($offer->user_id, 'teach_offer.interest', [
+                'actor' => $request->user(),
+                'title' => $request->user()->name.' wants to learn '.$offer->title,
+                'body' => $short,
+                'subject' => $offer,
+                'action_url' => '/community?tab=ask-teach',
+            ]);
+        }
 
         return $this->show($request, $offer->fresh());
     }
@@ -191,6 +209,14 @@ class TeachOfferController extends Controller
             'location' => $data['location'] ?? $offer->location,
             'link' => $data['link'] ?? $offer->link,
             'event_id' => $event->id,
+        ]);
+
+        $this->notifier->sendMany($offer->interests()->pluck('user_id'), 'teach_offer.scheduled', [
+            'actor' => $request->user(),
+            'title' => $offer->title.' has a date',
+            'body' => $event->starts_at->format('D j M, g:ia').". You're RSVP'd.",
+            'subject' => $event,
+            'action_url' => '/community?tab=events',
         ]);
 
         return response()->json([

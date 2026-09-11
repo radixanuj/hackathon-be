@@ -6,6 +6,7 @@ use App\Http\Controllers\Controller;
 use App\Http\Resources\InterestGroupResource;
 use App\Http\Resources\UserSummaryResource;
 use App\Models\InterestGroup;
+use App\Services\Notifier;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Http\Resources\Json\AnonymousResourceCollection;
@@ -19,6 +20,8 @@ use Symfony\Component\HttpKernel\Exception\AccessDeniedHttpException;
  */
 class InterestGroupController extends Controller
 {
+    public function __construct(protected Notifier $notifier) {}
+
     public function index(Request $request): AnonymousResourceCollection
     {
         $filters = $request->validate([
@@ -127,8 +130,22 @@ class InterestGroupController extends Controller
             return response()->json(['message' => 'This group is archived.'], 422);
         }
 
+        // syncWithoutDetaching is happy to re-run, so check first — re-joining a
+        // group you are already in is not news for the owner.
+        $isNew = ! $group->members()->where('users.id', $request->user()->id)->exists();
+
         $group->members()->syncWithoutDetaching([$request->user()->id => ['role' => 'member']]);
         $group->syncMembersCount();
+
+        if ($isNew) {
+            $this->notifier->send($group->created_by, 'group.joined', [
+                'actor' => $request->user(),
+                'title' => $request->user()->name.' joined '.$group->name,
+                'body' => $group->fresh()->members_count.' members now.',
+                'subject' => $group,
+                'action_url' => '/community?tab=groups',
+            ]);
+        }
 
         return response()->json([
             'data' => new InterestGroupResource($this->attachMembership($group->fresh()->load('creator'), $request->user()->id)),
