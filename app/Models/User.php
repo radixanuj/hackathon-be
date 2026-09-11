@@ -125,6 +125,54 @@ class User extends Authenticatable
         return $this->hasMany(SessionRequest::class, 'recipient_id');
     }
 
+    // --- Phase 2 -------------------------------------------------------------
+
+    public function buddySignup(): HasOne
+    {
+        return $this->hasOne(BuddySignup::class);
+    }
+
+    public function officeHourSlots(): HasMany
+    {
+        return $this->hasMany(OfficeHourSlot::class, 'host_id');
+    }
+
+    public function coffeeInvites(): HasMany
+    {
+        return $this->hasMany(CoffeeInvite::class, 'host_id');
+    }
+
+    public function challengeParticipations(): HasMany
+    {
+        return $this->hasMany(ChallengeParticipant::class);
+    }
+
+    public function radixQuestions(): HasMany
+    {
+        return $this->hasMany(RadixQuestion::class);
+    }
+
+    public function teachOffers(): HasMany
+    {
+        return $this->hasMany(TeachOffer::class);
+    }
+
+    public function openInvites(): HasMany
+    {
+        return $this->hasMany(OpenInvite::class);
+    }
+
+    public function suggestionDismissals(): HasMany
+    {
+        return $this->hasMany(SuggestionDismissal::class);
+    }
+
+    /** The buddy pairing currently in force, if any. */
+    public function activeBuddyPairing(): ?BuddyPairing
+    {
+        return BuddyPairing::forUser($this->id)->where('status', 'active')->first();
+    }
+
     public function scopeActive(Builder $query): Builder
     {
         return $query->where('is_active', true);

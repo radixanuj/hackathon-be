@@ -8,6 +8,7 @@ use App\Http\Resources\StoryResource;
 use App\Models\Ama;
 use App\Models\Story;
 use App\Models\StoryReaction;
+use App\Models\Tag;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Http\Resources\Json\AnonymousResourceCollection;
@@ -26,17 +27,19 @@ class StoryController extends Controller
             'q' => ['nullable', 'string', 'max:120'],
             'category' => ['nullable', Rule::in(Story::CATEGORIES)],
             'user_id' => ['nullable', 'integer', 'exists:users,id'],
+            'tag' => ['nullable', 'string'],
             'per_page' => ['nullable', 'integer', 'min:1', 'max:100'],
         ]);
 
         $stories = Story::query()
-            ->with(['user', 'ama'])
+            ->with(['user', 'ama', 'tags'])
             ->when($filters['q'] ?? null, fn ($q, $term) => $q->where(
                 fn ($sub) => $sub->where('title', 'like', '%'.$term.'%')
                     ->orWhere('body', 'like', '%'.$term.'%')
             ))
             ->when($filters['category'] ?? null, fn ($q, $c) => $q->where('category', $c))
             ->when($filters['user_id'] ?? null, fn ($q, $id) => $q->where('user_id', $id))
+            ->when($filters['tag'] ?? null, fn ($q, $slug) => $q->whereHas('tags', fn ($t) => $t->where('slug', $slug)))
             ->orderByDesc('id')
             ->paginate($filters['per_page'] ?? 20)
             ->withQueryString();
@@ -53,16 +56,21 @@ class StoryController extends Controller
             'body' => ['required', 'string', 'max:6000'],
             'category' => ['required', Rule::in(Story::CATEGORIES)],
             'media_url' => ['nullable', 'url', 'max:500'],
+            'tags' => ['nullable', 'array', 'max:6'],
+            'tags.*' => ['string', 'max:60'],
         ]);
 
-        $story = $request->user()->stories()->create($data);
+        $story = $request->user()->stories()->create(collect($data)->except('tags')->all());
+        $this->syncTags($story, $data['tags'] ?? []);
 
-        return response()->json(['data' => new StoryResource($story->load('user'))], 201);
+        return response()->json([
+            'data' => new StoryResource($story->load(['user', 'tags'])),
+        ], 201);
     }
 
     public function show(Request $request, Story $story): JsonResponse
     {
-        $story->load(['user', 'ama']);
+        $story->load(['user', 'ama', 'tags']);
         $story->my_reaction = $story->reactions()
             ->where('user_id', $request->user()->id)
             ->value('reaction');
@@ -79,11 +87,19 @@ class StoryController extends Controller
             'body' => ['sometimes', 'string', 'max:6000'],
             'category' => ['sometimes', Rule::in(Story::CATEGORIES)],
             'media_url' => ['sometimes', 'nullable', 'url', 'max:500'],
+            'tags' => ['sometimes', 'array', 'max:6'],
+            'tags.*' => ['string', 'max:60'],
         ]);
 
-        $story->update($data);
+        $story->update(collect($data)->except('tags')->all());
 
-        return response()->json(['data' => new StoryResource($story->fresh()->load(['user', 'ama']))]);
+        if (array_key_exists('tags', $data)) {
+            $this->syncTags($story, $data['tags']);
+        }
+
+        return response()->json([
+            'data' => new StoryResource($story->fresh()->load(['user', 'ama', 'tags'])),
+        ]);
     }
 
     public function destroy(Request $request, Story $story): JsonResponse
@@ -148,6 +164,44 @@ class StoryController extends Controller
         $story->update(['ama_id' => $ama->id]);
 
         return response()->json(['data' => new AmaResource($ama->load('host'))], 201);
+    }
+
+    /**
+     * Phase 2: stories surfaced through the viewer's own interests.
+     *
+     * Ranks by how many of the story's tags the viewer has on their profile,
+     * then falls back to recency so the feed is never empty.
+     */
+    public function discover(Request $request): AnonymousResourceCollection
+    {
+        $user = $request->user();
+        $myTagIds = $user->tags()->pluck('tags.id')->all();
+
+        $stories = Story::query()
+            ->with(['user', 'ama', 'tags'])
+            ->where('user_id', '!=', $user->id)
+            ->withCount(['tags as matching_tags_count' => fn ($q) => $q->whereIn('tags.id', $myTagIds)])
+            ->orderByDesc('matching_tags_count')
+            ->orderByDesc('reactions_count')
+            ->orderByDesc('id')
+            ->paginate($request->integer('per_page', 20))
+            ->withQueryString();
+
+        $this->attachReactionState($stories, $user->id);
+
+        return StoryResource::collection($stories);
+    }
+
+    protected function syncTags(Story $story, array $names): void
+    {
+        $ids = collect($names)
+            ->map(fn (string $name) => trim($name))
+            ->filter()
+            ->unique()
+            ->map(fn (string $name) => Tag::findOrCreateByName($name, 'interest')->id)
+            ->all();
+
+        $story->tags()->sync($ids);
     }
 
     protected function assertOwner(Request $request, Story $story): void

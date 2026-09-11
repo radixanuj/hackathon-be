@@ -133,6 +133,10 @@ class RecommendationController extends Controller
             ->pluck('recommendation_id')
             ->all();
 
-        $items->each(fn (Recommendation $r) => $r->is_liked = in_array($r->id, $liked, true));
+        // A block body, not an arrow: `each` stops when the callback returns
+        // false, which an arrow would do on the first un-liked row.
+        $items->each(function (Recommendation $r) use ($liked) {
+            $r->is_liked = in_array($r->id, $liked, true);
+        });
     }
 }

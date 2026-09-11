@@ -4,6 +4,7 @@ namespace App\Models;
 
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 
 class Story extends Model
@@ -24,6 +25,12 @@ class Story extends Model
     public function ama(): BelongsTo
     {
         return $this->belongsTo(Ama::class);
+    }
+
+    /** Phase 2: tags make a story discoverable through interests and profiles. */
+    public function tags(): BelongsToMany
+    {
+        return $this->belongsToMany(Tag::class, 'story_tag')->withTimestamps();
     }
 
     public function reactions(): HasMany

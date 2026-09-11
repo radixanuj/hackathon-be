@@ -18,6 +18,7 @@ class StoryResource extends JsonResource
             'ama_id' => $this->ama_id,
             'reactions_count' => $this->reactions_count,
             'my_reaction' => $this->when(isset($this->my_reaction), fn () => $this->my_reaction),
+            'tags' => TagResource::collection($this->whenLoaded('tags')),
             'user' => new UserSummaryResource($this->whenLoaded('user')),
             'ama' => new AmaResource($this->whenLoaded('ama')),
             'created_at' => $this->created_at?->toIso8601String(),

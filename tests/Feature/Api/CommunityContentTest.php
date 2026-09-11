@@ -183,6 +183,20 @@ class CommunityContentTest extends TestCase
         $this->postJson("/api/v1/stories/{$story->id}/convert-to-ama")->assertStatus(422);
     }
 
+    public function test_meta_lists_every_phase_two_enum(): void
+    {
+        $this->actingAs(User::factory()->create(), 'sanctum');
+
+        $this->getJson('/api/v1/meta')->assertOk()->assertJsonStructure([
+            'data' => [
+                'teams', 'locations', 'tag_kinds', 'session_categories', 'group_categories',
+                'recommendation_types', 'event_categories', 'story_categories',
+                'challenge_categories', 'coffee_invite_kinds', 'teach_formats',
+                'teach_levels', 'question_statuses',
+            ],
+        ]);
+    }
+
     public function test_the_dashboard_returns_every_pillar(): void
     {
         $user = User::factory()->create();
@@ -192,8 +206,12 @@ class CommunityContentTest extends TestCase
 
         $this->getJson('/api/v1/dashboard')->assertOk()->assertJsonStructure([
             'data' => [
+                // Phase 1
                 'quest', 'blind_meetup_round', 'pending_session_requests',
                 'upcoming_events', 'open_amas', 'latest_recommendations', 'latest_stories',
+                // Phase 2
+                'who_should_i_meet', 'buddy', 'open_coffee_invites', 'active_challenges',
+                'questions_i_could_answer', 'teach_offers_seeking_interest', 'open_invites',
             ],
         ]);
     }

@@ -80,7 +80,11 @@ class AmaController extends Controller
             ->pluck('ama_question_id')
             ->all();
 
-        $ama->questions->each(fn (AmaQuestion $q) => $q->is_upvoted = in_array($q->id, $voted, true));
+        // A block body, not an arrow: `each` stops when the callback returns
+        // false, which an arrow would do on the first un-voted question.
+        $ama->questions->each(function (AmaQuestion $q) use ($voted) {
+            $q->is_upvoted = in_array($q->id, $voted, true);
+        });
 
         return response()->json(['data' => new AmaResource($ama)]);
     }

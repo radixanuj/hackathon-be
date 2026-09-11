@@ -1,17 +1,25 @@
 <?php
 
 use App\Http\Controllers\Api\AmaController;
+use App\Http\Controllers\Api\AskRadixController;
 use App\Http\Controllers\Api\AuthController;
+use App\Http\Controllers\Api\BuddyController;
+use App\Http\Controllers\Api\ChallengeController;
+use App\Http\Controllers\Api\CoffeeInviteController;
 use App\Http\Controllers\Api\DashboardController;
 use App\Http\Controllers\Api\EventController;
 use App\Http\Controllers\Api\InterestGroupController;
 use App\Http\Controllers\Api\MeetupController;
 use App\Http\Controllers\Api\MetaController;
+use App\Http\Controllers\Api\OfficeHourController;
+use App\Http\Controllers\Api\OpenInviteController;
 use App\Http\Controllers\Api\QuestController;
 use App\Http\Controllers\Api\RecommendationController;
 use App\Http\Controllers\Api\SessionRequestController;
 use App\Http\Controllers\Api\StoryController;
+use App\Http\Controllers\Api\SuggestionController;
 use App\Http\Controllers\Api\TagController;
+use App\Http\Controllers\Api\TeachOfferController;
 use App\Http\Controllers\Api\UserController;
 use Illuminate\Support\Facades\Route;
 
@@ -26,6 +34,14 @@ use Illuminate\Support\Facades\Route;
 |   Learn & Share         -> recommendations, AMAs
 |   Do Together           -> events
 |   Celebrate & Discover  -> stories
+|
+| Phase 2 adds, within the same pillars:
+|   People                -> Who Should I Meet?
+|   Connect               -> Cross-location Buddy, Office Hours, Coffee/Lunch Invites
+|   Communities           -> Challenges
+|   Learn & Share         -> Ask Radix, Teach Radix
+|   Do Together           -> Open Invites
+|   Celebrate & Discover  -> story tags and interest-led discovery
 */
 
 Route::prefix('v1')->group(function () {
@@ -116,6 +132,7 @@ Route::prefix('v1')->group(function () {
 
         // --- Celebrate & Discover: Stories ------------------------------------
         Route::get('stories', [StoryController::class, 'index']);
+        Route::get('stories/discover', [StoryController::class, 'discover']);
         Route::post('stories', [StoryController::class, 'store']);
         Route::get('stories/{story}', [StoryController::class, 'show']);
         Route::patch('stories/{story}', [StoryController::class, 'update']);
@@ -123,5 +140,85 @@ Route::prefix('v1')->group(function () {
         Route::post('stories/{story}/react', [StoryController::class, 'react']);
         Route::delete('stories/{story}/react', [StoryController::class, 'removeReaction']);
         Route::post('stories/{story}/convert-to-ama', [StoryController::class, 'convertToAma']);
+
+        /*
+        |----------------------------------------------------------------------
+        | Phase 2 — Make Connection Easier
+        |----------------------------------------------------------------------
+        */
+
+        // --- People: Who Should I Meet? --------------------------------------
+        Route::get('me/suggestions', [SuggestionController::class, 'index']);
+        Route::post('users/{user}/dismiss-suggestion', [SuggestionController::class, 'dismiss']);
+        Route::delete('users/{user}/dismiss-suggestion', [SuggestionController::class, 'undismiss']);
+
+        // --- Connect: Cross-location Buddy -----------------------------------
+        Route::get('me/buddy', [BuddyController::class, 'show']);
+        Route::post('me/buddy', [BuddyController::class, 'optIn']);
+        Route::delete('me/buddy', [BuddyController::class, 'optOut']);
+        Route::get('me/buddy/history', [BuddyController::class, 'history']);
+        Route::post('buddy-pairings/{pairing}/end', [BuddyController::class, 'end']);
+
+        // --- Connect: Office Hours -------------------------------------------
+        Route::get('office-hours', [OfficeHourController::class, 'index']);
+        Route::post('office-hours', [OfficeHourController::class, 'store']);
+        Route::get('me/office-hour-bookings', [OfficeHourController::class, 'myBookings']);
+        Route::get('office-hours/{slot}', [OfficeHourController::class, 'show']);
+        Route::patch('office-hours/{slot}', [OfficeHourController::class, 'update']);
+        Route::delete('office-hours/{slot}', [OfficeHourController::class, 'destroy']);
+        Route::post('office-hours/{slot}/book', [OfficeHourController::class, 'book']);
+        Route::delete('office-hours/{slot}/book', [OfficeHourController::class, 'cancelBooking']);
+
+        // --- Connect: Open Coffee / Lunch Invites ----------------------------
+        Route::get('coffee-invites', [CoffeeInviteController::class, 'index']);
+        Route::post('coffee-invites', [CoffeeInviteController::class, 'store']);
+        Route::get('coffee-invites/{invite}', [CoffeeInviteController::class, 'show']);
+        Route::patch('coffee-invites/{invite}', [CoffeeInviteController::class, 'update']);
+        Route::delete('coffee-invites/{invite}', [CoffeeInviteController::class, 'destroy']);
+        Route::post('coffee-invites/{invite}/join', [CoffeeInviteController::class, 'join']);
+        Route::delete('coffee-invites/{invite}/join', [CoffeeInviteController::class, 'leave']);
+
+        // --- Communities: Challenges -----------------------------------------
+        Route::get('challenges', [ChallengeController::class, 'index']);
+        Route::post('challenges', [ChallengeController::class, 'store']);
+        Route::get('challenges/{challenge}', [ChallengeController::class, 'show']);
+        Route::patch('challenges/{challenge}', [ChallengeController::class, 'update']);
+        Route::delete('challenges/{challenge}', [ChallengeController::class, 'destroy']);
+        Route::post('challenges/{challenge}/join', [ChallengeController::class, 'join']);
+        Route::delete('challenges/{challenge}/join', [ChallengeController::class, 'leave']);
+        Route::post('challenges/{challenge}/logs', [ChallengeController::class, 'log']);
+        Route::get('challenges/{challenge}/leaderboard', [ChallengeController::class, 'leaderboard']);
+
+        // --- Learn & Share: Ask Radix ----------------------------------------
+        Route::get('questions', [AskRadixController::class, 'index']);
+        Route::post('questions', [AskRadixController::class, 'store']);
+        Route::get('questions/{question}', [AskRadixController::class, 'show']);
+        Route::patch('questions/{question}', [AskRadixController::class, 'update']);
+        Route::delete('questions/{question}', [AskRadixController::class, 'destroy']);
+        Route::post('questions/{question}/answers', [AskRadixController::class, 'answer']);
+        Route::post('questions/{question}/volunteer', [AskRadixController::class, 'volunteer']);
+        Route::delete('questions/{question}/volunteer', [AskRadixController::class, 'withdrawVolunteer']);
+        Route::post('question-answers/{answer}/accept', [AskRadixController::class, 'acceptAnswer']);
+        Route::delete('question-answers/{answer}', [AskRadixController::class, 'deleteAnswer']);
+
+        // --- Learn & Share: Teach Radix --------------------------------------
+        Route::get('teach-offers', [TeachOfferController::class, 'index']);
+        Route::post('teach-offers', [TeachOfferController::class, 'store']);
+        Route::get('teach-offers/{offer}', [TeachOfferController::class, 'show']);
+        Route::patch('teach-offers/{offer}', [TeachOfferController::class, 'update']);
+        Route::delete('teach-offers/{offer}', [TeachOfferController::class, 'destroy']);
+        Route::post('teach-offers/{offer}/interest', [TeachOfferController::class, 'express']);
+        Route::delete('teach-offers/{offer}/interest', [TeachOfferController::class, 'withdraw']);
+        Route::post('teach-offers/{offer}/schedule', [TeachOfferController::class, 'schedule']);
+
+        // --- Do Together: Open Invites ---------------------------------------
+        Route::get('open-invites', [OpenInviteController::class, 'index']);
+        Route::post('open-invites', [OpenInviteController::class, 'store']);
+        Route::get('open-invites/{invite}', [OpenInviteController::class, 'show']);
+        Route::patch('open-invites/{invite}', [OpenInviteController::class, 'update']);
+        Route::delete('open-invites/{invite}', [OpenInviteController::class, 'destroy']);
+        Route::post('open-invites/{invite}/interest', [OpenInviteController::class, 'express']);
+        Route::delete('open-invites/{invite}/interest', [OpenInviteController::class, 'withdraw']);
+        Route::post('open-invites/{invite}/convert-to-event', [OpenInviteController::class, 'convertToEvent']);
     });
 });

@@ -3,7 +3,7 @@
 Base URL: `{APP_URL}/api/v1` · Auth: `Authorization: Bearer <token>` (Laravel Sanctum)
 
 Import [`radix-connect.postman_collection.json`](./radix-connect.postman_collection.json) for a runnable
-collection of all 70 endpoints. Log in once and the token is captured automatically.
+collection of all 129 endpoints (Phase 1 + Phase 2). Log in once and the token is captured automatically.
 
 ## Signing in (demo mode)
 
@@ -48,6 +48,8 @@ Every seeded user's password is `Radix123`. **Anuj Maurya** (`admin@radix.email`
 is required to create Blind Meetup rounds and run matching.
 
 ---
+
+# Phase 1 — Create Connections
 
 ## People — Profiles
 
@@ -189,6 +191,144 @@ Not recognition or awards — the point is *I didn't know this about that person
 
 Categories: `sport`, `travel`, `learning`, `making`, `milestone`, `other`.
 
+---
+
+# Phase 2 — Make Connection Easier
+
+Added inside the same six pillars rather than as new sections.
+
+## People — Who Should I Meet?
+
+Ranks colleagues on the three things the pillar asks for: **shared interests**, **complementary knowledge**,
+and **lack of previous interaction**.
+
+| Method | Endpoint | Notes |
+|---|---|---|
+| `GET` | `/me/suggestions` | `?limit=5`. Each suggestion has `person`, `reasons[]` and `previously_connected` |
+| `POST` | `/users/{id}/dismiss-suggestion` | "Not right now" — keeps them out of future suggestions |
+| `DELETE` | `/users/{id}/dismiss-suggestion` | Undo the dismissal |
+
+Prior interaction means a real 1:1 link: a quest person marked met, a blind meetup pair, a buddy pairing, a
+mentoring request in either direction, an office hours booking, or a shared coffee invite. Sharing a group or
+an event does **not** count — sitting in the same WhatsApp group is not the same as having spoken.
+
+Someone you have already connected with is ranked far down rather than hidden. In a company this size everyone
+eventually meets everyone, and an empty screen helps nobody — `previously_connected` lets the UI label it.
+
+## Connect — Cross-location Buddy
+
+An ongoing pairing with someone in another office. No monthly round: you opt in and get paired the moment
+someone elsewhere is waiting. A **different location is a hard requirement** — if nobody qualifies you stay in
+the pool rather than being paired with a neighbour. A different team is preferred on top of that.
+
+| Method | Endpoint | Notes |
+|---|---|---|
+| `GET` | `/me/buddy` | `{ signup, pairing }`, either may be null; `pairing.buddy` is the other person |
+| `POST` | `/me/buddy` | Opt in and attempt a match. 422 with no location on your profile, or if already paired |
+| `DELETE` | `/me/buddy` | Leave the pool |
+| `GET` | `/me/buddy/history` | Every pairing you've had |
+| `POST` | `/buddy-pairings/{id}/end` | Either buddy can end it |
+
+The matcher will not re-pair two people who have been buddies before.
+
+## Connect — Office Hours
+
+A host publishes open slots; anyone books one. No accept/decline step — that's what Mentoring is for.
+
+| Method | Endpoint | Notes |
+|---|---|---|
+| `GET` | `/office-hours` | `?scope=upcoming\|past\|all&host_id=&available_only=1` |
+| `POST` | `/office-hours` | `{ starts_at, duration_minutes?, capacity?, title?, location?, link? }` |
+| `GET` `PATCH` `DELETE` | `/office-hours/{id}` | Host or admin to write |
+| `POST` | `/office-hours/{id}/book` | `{ topic? }` — 422 if full, past, cancelled, or your own slot |
+| `DELETE` | `/office-hours/{id}/book` | Cancelling frees the seat |
+| `GET` | `/me/office-hour-bookings` | Slots you've booked |
+
+## Connect — Open Coffee / Lunch Invites
+
+Lighter than an Event: a time, a place, a couple of seats.
+
+| Method | Endpoint | Notes |
+|---|---|---|
+| `GET` | `/coffee-invites` | `?scope=open\|past\|mine\|all&kind=&location=` |
+| `POST` | `/coffee-invites` | `kind`: `coffee`, `lunch`, `walk` |
+| `GET` `PATCH` `DELETE` | `/coffee-invites/{id}` | Host or admin to write |
+| `POST` / `DELETE` | `/coffee-invites/{id}/join` | 422 if full, cancelled, past, or you're the host |
+
+`capacity` counts guest seats — the host doesn't occupy one.
+
+## Communities — Challenges
+
+A challenge counts one thing and `unit` says what (km, books, photos, days). Participants log entries; the
+leaderboard falls out of the totals.
+
+| Method | Endpoint | Notes |
+|---|---|---|
+| `GET` | `/challenges` | `?scope=active\|upcoming\|past\|mine\|all&category=&group_id=&q=` |
+| `POST` | `/challenges` | Creator is enrolled automatically; slugs made unique on collision |
+| `GET` | `/challenges/{slug}` | Includes ranked leaderboard and your `my_participation` |
+| `PATCH` `DELETE` | `/challenges/{slug}` | Creator or admin |
+| `POST` / `DELETE` | `/challenges/{slug}/join` | |
+| `POST` | `/challenges/{slug}/logs` | `{ value, note?, logged_on? }` — 422 if not joined or not running |
+| `GET` | `/challenges/{slug}/leaderboard` | Ranked, with `rank` on each row |
+
+Categories: `running`, `reading`, `photography`, `sports`, `learning`, `other`.
+
+## Learn & Share — Ask Radix
+
+The point is that the asker doesn't need to know who can help. Tags route the question, and relevant people can
+either write an answer **or simply volunteer to talk** — often the more useful of the two.
+
+| Method | Endpoint | Notes |
+|---|---|---|
+| `GET` | `/questions` | `?status=&tag=&user_id=&q=` |
+| `GET` | `/questions?for_me=1` | **The routing feature.** Open questions, not your own, tagged with something you listed under *can talk about* or *can help with* |
+| `POST` | `/questions` | `{ title, body?, tags[] }` — tags created on the fly |
+| `GET` `PATCH` `DELETE` | `/questions/{id}` | Asker or admin to write |
+| `POST` | `/questions/{id}/answers` | 422 if the question is closed |
+| `POST` / `DELETE` | `/questions/{id}/volunteer` | `{ note? }` — 422 on your own question |
+| `POST` | `/question-answers/{id}/accept` | **Asker only, no admin bypass** — marks the question answered |
+| `DELETE` | `/question-answers/{id}` | Author, asker or admin |
+
+Accepting a second answer unsets the first.
+
+## Learn & Share — Teach Radix
+
+The mirror of Ask Radix: offer a session and see whether anyone wants it before committing to a date.
+
+| Method | Endpoint | Notes |
+|---|---|---|
+| `GET` | `/teach-offers` | `?status=&level=&format=&user_id=&q=` |
+| `GET` | `/teach-offers?ready=1` | Offers that hit `min_interested` and just need a date |
+| `POST` | `/teach-offers` | `{ title, format, level?, topic?, duration_minutes?, min_interested?, preferred_times? }` |
+| `GET` `PATCH` `DELETE` | `/teach-offers/{id}` | Owner or admin to write |
+| `POST` / `DELETE` | `/teach-offers/{id}/interest` | 422 on your own offer |
+| `POST` | `/teach-offers/{id}/schedule` | Owner only. Creates an Event (`ends_at` from `duration_minutes`) and RSVPs the teacher plus everyone interested. Returns the Event |
+
+Formats: `session`, `workshop`, `walkthrough`. Levels: `any`, `beginner`, `intermediate`, `advanced`.
+
+## Do Together — Open Invites
+
+"Anyone interested?" with no date and no logistics. Becomes a real Event only once enough people say yes.
+
+| Method | Endpoint | Notes |
+|---|---|---|
+| `GET` | `/open-invites` | `?status=&category=&mine=1&q=` — sorted by interest |
+| `POST` | `/open-invites` | Posting counts as interest, so the count starts at 1 |
+| `GET` `PATCH` `DELETE` | `/open-invites/{id}` | Author or admin to write |
+| `POST` / `DELETE` | `/open-invites/{id}/interest` | 422 once the invite is closed |
+| `POST` | `/open-invites/{id}/convert-to-event` | Author only. Creates an Event in the same category and RSVPs everyone interested. Returns the Event |
+
+## Celebrate & Discover — Stories through interests
+
+| Method | Endpoint | Notes |
+|---|---|---|
+| `GET` | `/stories/discover` | Other people's stories, ranked by how many tags match your profile interests, then reactions and recency |
+| `GET` | `/stories?tag={slug}` | Filter by tag |
+| `POST` `PATCH` | `/stories` | Now accept `tags[]` (max 6) |
+
+---
+
 ## Supporting endpoints
 
 | Method | Endpoint | Notes |
@@ -203,8 +343,10 @@ Categories: `sport`, `travel`, `learning`, `making`, `milestone`, `other`.
 
 ---
 
-## Not in Phase 1
+## Not built
 
-Deliberately excluded, per the phased scope: Who Should I Meet, Cross-location Buddy, Office Hours, Open
-Coffee/Lunch Invites, Challenges, Ask Radix, Teach Radix, Open Invites (Phase 2); Radix Map, smarter matching,
-local chapters, anonymous questions, bucket list, spotlights and kudos (Phase 3).
+Phase 3, deliberately excluded: Radix Map and richer network suggestions, smarter matching from previous
+connections, local chapters and discussion rooms, anonymous *Ask a Dumb Question* and Lessons Learned, shared
+bucket list, volunteering and side projects, employee spotlights and peer kudos.
+
+Anonymous questions sit in Phase 3 rather than here because they need clear moderation and privacy rules first.

@@ -2,7 +2,7 @@
   "info": {
     "_postman_id": "95da7e08-e8a5-4e73-baf3-d083518c89bd",
     "name": "Radix Connect API — Phase 1",
-    "description": "Radix Connect Phase 1.\n\n**Pillars covered**\n- People — Profiles + New Joiner Quest\n- Connect — Blind Meetups + Mentoring\n- Communities — Interest Groups\n- Learn & Share — Recommendations + AMA\n- Do Together — Events\n- Celebrate & Discover — Stories\n\n**Getting started**\n1. Set `base_url` (default `http://localhost:8000`).\n2. Run `00 · Auth → Demo login` — just a name and the shared password `Radix123`. The token is captured into the `token` variable automatically and every other request inherits bearer auth from the collection.\n\nSign in as `Anuj Maurya` for the admin role (needed to create Blind Meetup rounds and run matching). Any unrecognised name creates a fresh profile with its own New Joiner Quest. Real email/password auth still works: seeded accounts use `Radix123` as their password.\n\n**Conventions**\n- Single resources: `{ \"data\": { ... } }`. Lists are paginated: `{ \"data\": [...], \"links\": {...}, \"meta\": {...} }`.\n- Errors: `{ \"message\": \"...\" }`, with `{ \"errors\": { field: [...] } }` on 422.\n- All timestamps are ISO 8601 UTC.",
+    "description": "Radix Connect Phase 1.\n\n**Pillars covered**\n- People — Profiles + New Joiner Quest\n- Connect — Blind Meetups + Mentoring\n- Communities — Interest Groups\n- Learn & Share — Recommendations + AMA\n- Do Together — Events\n- Celebrate & Discover — Stories\n\n**Getting started**\n1. Set `base_url` (default `http://localhost:8000`).\n2. Run `00 · Auth → Demo login` — just a name and the shared password `Radix123`. The token is captured into the `token` variable automatically and every other request inherits bearer auth from the collection.\n\nSign in as `Anuj Maurya` for the admin role (needed to create Blind Meetup rounds and run matching). Any unrecognised name creates a fresh profile with its own New Joiner Quest. Real email/password auth still works: seeded accounts use `Radix123` as their password.\n\n**Conventions**\n- Single resources: `{ \"data\": { ... } }`. Lists are paginated: `{ \"data\": [...], \"links\": {...}, \"meta\": {...} }`.\n- Errors: `{ \"message\": \"...\" }`, with `{ \"errors\": { field: [...] } }` on 422.\n- All timestamps are ISO 8601 UTC.\n\n---\n\n**Phase 2 — Make Connection Easier** (folders 11–18)\n- People — Who Should I Meet?\n- Connect — Cross-location Buddy, Office Hours, Open Coffee / Lunch Invites\n- Communities — Challenges\n- Learn & Share — Ask Radix, Teach Radix\n- Do Together — Open Invites\n- Celebrate & Discover — story tags and interest-led discovery (in folder 10)",
     "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
   },
   "auth": {
@@ -2999,6 +2999,62 @@
           }
         },
         {
+          "name": "Discover by my interests",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/v1/stories/discover",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "stories",
+                "discover"
+              ],
+              "query": []
+            },
+            "description": "Phase 2. Other people's stories, ranked by how many of their tags match the interests on your profile, then by reactions and recency — so the feed is never empty."
+          }
+        },
+        {
+          "name": "Filter by tag",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/v1/stories?tag=trekking",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "stories"
+              ],
+              "query": [
+                {
+                  "key": "tag",
+                  "value": "trekking"
+                }
+              ]
+            },
+            "description": "Phase 2. Stories are tagged, which is what makes them discoverable through interests."
+          }
+        },
+        {
           "name": "By a person",
           "request": {
             "method": "GET",
@@ -3053,10 +3109,10 @@
               ],
               "query": []
             },
-            "description": "category: sport | travel | learning | making | milestone | other.",
+            "description": "category: sport | travel | learning | making | milestone | other. Phase 2: `tags` make the story discoverable through interests.",
             "body": {
               "mode": "raw",
-              "raw": "{\n  \"title\": \"Completed HYROX Dubai\",\n  \"body\": \"Signed up on a dare in March, finished in November.\",\n  \"category\": \"sport\",\n  \"media_url\": null\n}",
+              "raw": "{\n  \"title\": \"Completed HYROX Dubai\",\n  \"body\": \"Signed up on a dare in March, finished in November.\",\n  \"category\": \"sport\",\n  \"media_url\": null,\n  \"tags\": [\n    \"Running\",\n    \"Travel\"\n  ]\n}",
               "options": {
                 "raw": {
                   "language": "json"
@@ -3253,6 +3309,2233 @@
                 "api",
                 "v1",
                 "stories",
+                "1"
+              ],
+              "query": []
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "11 · People — Who Should I Meet?",
+      "description": "Phase 2. Ranks colleagues on the three things the pillar asks for: shared interests, complementary knowledge, and a lack of previous interaction.\n\nSomeone you have already been paired with is ranked far down rather than hidden — `previously_connected` tells the UI which is which. Each suggestion carries its `reasons`.",
+      "item": [
+        {
+          "name": "Who should I meet?",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/v1/me/suggestions?limit=5",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "me",
+                "suggestions"
+              ],
+              "query": [
+                {
+                  "key": "limit",
+                  "value": "5"
+                }
+              ]
+            },
+            "description": "Prior interaction means a real 1:1 link: a quest person you marked met, a blind meetup pair, a buddy pairing, a mentoring request either way, an office hours booking, or a shared coffee invite. Sharing a group or an event does not count."
+          }
+        },
+        {
+          "name": "Dismiss someone",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/v1/users/2/dismiss-suggestion",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "users",
+                "2",
+                "dismiss-suggestion"
+              ],
+              "query": []
+            },
+            "description": "\"Not right now\" — keeps them out of future suggestions permanently.",
+            "body": {
+              "mode": "raw",
+              "raw": "{}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          }
+        },
+        {
+          "name": "Undo a dismissal",
+          "request": {
+            "method": "DELETE",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/v1/users/2/dismiss-suggestion",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "users",
+                "2",
+                "dismiss-suggestion"
+              ],
+              "query": []
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "12 · Connect — Cross-location Buddy",
+      "description": "Phase 2. An ongoing pairing with someone in another office. Unlike Blind Meetups there is no monthly round: you opt in and are paired as soon as someone elsewhere is waiting.\n\nA different location is a hard requirement — if nobody qualifies you stay in the pool.",
+      "item": [
+        {
+          "name": "My buddy",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/v1/me/buddy",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "me",
+                "buddy"
+              ],
+              "query": []
+            },
+            "description": "Returns `{ signup, pairing }`; either may be null. `pairing.buddy` is the other person."
+          }
+        },
+        {
+          "name": "Opt in",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/v1/me/buddy",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "me",
+                "buddy"
+              ],
+              "query": []
+            },
+            "description": "Tries to pair immediately. 422 if your profile has no location, or you already have an active buddy.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"note\": \"Happy to meet anyone, any office.\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          }
+        },
+        {
+          "name": "Opt out",
+          "request": {
+            "method": "DELETE",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/v1/me/buddy",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "me",
+                "buddy"
+              ],
+              "query": []
+            }
+          }
+        },
+        {
+          "name": "My buddy history",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/v1/me/buddy/history",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "me",
+                "buddy",
+                "history"
+              ],
+              "query": []
+            }
+          }
+        },
+        {
+          "name": "End a pairing",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/v1/buddy-pairings/1/end",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "buddy-pairings",
+                "1",
+                "end"
+              ],
+              "query": []
+            },
+            "description": "Either buddy can end it. Neither goes back in the pool automatically.",
+            "body": {
+              "mode": "raw",
+              "raw": "{}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "13 · Connect — Office Hours",
+      "description": "Phase 2. A host publishes open slots and anyone books one. There is no accept/decline step — that is what Mentoring session requests are for.",
+      "item": [
+        {
+          "name": "Browse slots",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/v1/office-hours?scope=upcoming&available_only=1",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "office-hours"
+              ],
+              "query": [
+                {
+                  "key": "scope",
+                  "value": "upcoming"
+                },
+                {
+                  "key": "available_only",
+                  "value": "1"
+                }
+              ]
+            },
+            "description": "scope: upcoming | past | all. `available_only=1` hides fully booked slots."
+          }
+        },
+        {
+          "name": "Slots by one person",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/v1/office-hours?host_id=2&scope=upcoming",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "office-hours"
+              ],
+              "query": [
+                {
+                  "key": "host_id",
+                  "value": "2"
+                },
+                {
+                  "key": "scope",
+                  "value": "upcoming"
+                }
+              ]
+            }
+          }
+        },
+        {
+          "name": "Publish a slot",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/v1/office-hours",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "office-hours"
+              ],
+              "query": []
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"title\": \"Office hours \\u2014 anything you like\",\n  \"description\": \"Work, career, or just a hello.\",\n  \"starts_at\": \"2026-10-05T10:00:00Z\",\n  \"duration_minutes\": 30,\n  \"capacity\": 2,\n  \"location\": \"Mumbai\",\n  \"link\": null\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          }
+        },
+        {
+          "name": "Get slot",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/v1/office-hours/1",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "office-hours",
+                "1"
+              ],
+              "query": []
+            }
+          }
+        },
+        {
+          "name": "Update (host)",
+          "request": {
+            "method": "PATCH",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/v1/office-hours/1",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "office-hours",
+                "1"
+              ],
+              "query": []
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"capacity\": 3\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          }
+        },
+        {
+          "name": "Cancel (host)",
+          "request": {
+            "method": "PATCH",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/v1/office-hours/1",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "office-hours",
+                "1"
+              ],
+              "query": []
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"status\": \"cancelled\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          }
+        },
+        {
+          "name": "Book it",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/v1/office-hours/1/book",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "office-hours",
+                "1",
+                "book"
+              ],
+              "query": []
+            },
+            "description": "422 if full, already started, cancelled, or it is your own slot.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"topic\": \"Queue design\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          }
+        },
+        {
+          "name": "Cancel my booking",
+          "request": {
+            "method": "DELETE",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/v1/office-hours/1/book",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "office-hours",
+                "1",
+                "book"
+              ],
+              "query": []
+            },
+            "description": "Frees the seat for someone else."
+          }
+        },
+        {
+          "name": "My bookings",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/v1/me/office-hour-bookings",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "me",
+                "office-hour-bookings"
+              ],
+              "query": []
+            }
+          }
+        },
+        {
+          "name": "Delete slot (host)",
+          "request": {
+            "method": "DELETE",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/v1/office-hours/1",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "office-hours",
+                "1"
+              ],
+              "query": []
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "14 · Connect — Open Coffee / Lunch Invites",
+      "description": "Phase 2. Deliberately lighter than an Event: a time, a place and a couple of seats.",
+      "item": [
+        {
+          "name": "Open invites",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/v1/coffee-invites?scope=open&kind=lunch",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "coffee-invites"
+              ],
+              "query": [
+                {
+                  "key": "scope",
+                  "value": "open"
+                },
+                {
+                  "key": "kind",
+                  "value": "lunch"
+                }
+              ]
+            },
+            "description": "scope: open | past | mine | all. kind: coffee | lunch | walk."
+          }
+        },
+        {
+          "name": "Mine (hosting or joined)",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/v1/coffee-invites?scope=mine",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "coffee-invites"
+              ],
+              "query": [
+                {
+                  "key": "scope",
+                  "value": "mine"
+                }
+              ]
+            }
+          }
+        },
+        {
+          "name": "Post an invite",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/v1/coffee-invites",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "coffee-invites"
+              ],
+              "query": []
+            },
+            "description": "`capacity` is seats for guests — the host does not occupy one.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"kind\": \"lunch\",\n  \"note\": \"Trying the new place downstairs.\",\n  \"starts_at\": \"2026-10-02T12:30:00Z\",\n  \"location\": \"Mumbai\",\n  \"is_virtual\": false,\n  \"capacity\": 3\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          }
+        },
+        {
+          "name": "Get invite",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/v1/coffee-invites/1",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "coffee-invites",
+                "1"
+              ],
+              "query": []
+            }
+          }
+        },
+        {
+          "name": "Update (host)",
+          "request": {
+            "method": "PATCH",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/v1/coffee-invites/1",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "coffee-invites",
+                "1"
+              ],
+              "query": []
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"capacity\": 4\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          }
+        },
+        {
+          "name": "Join",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/v1/coffee-invites/1/join",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "coffee-invites",
+                "1",
+                "join"
+              ],
+              "query": []
+            },
+            "description": "422 if full, cancelled, past, or you are the host.",
+            "body": {
+              "mode": "raw",
+              "raw": "{}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          }
+        },
+        {
+          "name": "Leave",
+          "request": {
+            "method": "DELETE",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/v1/coffee-invites/1/join",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "coffee-invites",
+                "1",
+                "join"
+              ],
+              "query": []
+            }
+          }
+        },
+        {
+          "name": "Delete (host)",
+          "request": {
+            "method": "DELETE",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/v1/coffee-invites/1",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "coffee-invites",
+                "1"
+              ],
+              "query": []
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "15 · Communities — Challenges",
+      "description": "Phase 2. A challenge counts one thing and `unit` says what — km, books, photos, days. Participants log entries and the leaderboard falls out of the totals.",
+      "item": [
+        {
+          "name": "Active challenges",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/v1/challenges?scope=active",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "challenges"
+              ],
+              "query": [
+                {
+                  "key": "scope",
+                  "value": "active"
+                }
+              ]
+            },
+            "description": "scope: active | upcoming | past | mine | all."
+          }
+        },
+        {
+          "name": "By category",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/v1/challenges?category=running&scope=all",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "challenges"
+              ],
+              "query": [
+                {
+                  "key": "category",
+                  "value": "running"
+                },
+                {
+                  "key": "scope",
+                  "value": "all"
+                }
+              ]
+            }
+          }
+        },
+        {
+          "name": "Start a challenge",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/v1/challenges",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "challenges"
+              ],
+              "query": []
+            },
+            "description": "The creator is enrolled automatically. Slugs are made unique on collision.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"title\": \"October Running Challenge\",\n  \"description\": \"Log every kilometre, treadmill counts.\",\n  \"category\": \"running\",\n  \"unit\": \"km\",\n  \"goal_value\": 100,\n  \"starts_on\": \"2026-10-01\",\n  \"ends_on\": \"2026-10-31\",\n  \"interest_group_id\": null\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          }
+        },
+        {
+          "name": "Get challenge (by slug)",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/v1/challenges/october-running-challenge",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "challenges",
+                "october-running-challenge"
+              ],
+              "query": []
+            },
+            "description": "Includes the ranked leaderboard and your own `my_participation`."
+          }
+        },
+        {
+          "name": "Leaderboard",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/v1/challenges/october-running-challenge/leaderboard",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "challenges",
+                "october-running-challenge",
+                "leaderboard"
+              ],
+              "query": []
+            }
+          }
+        },
+        {
+          "name": "Join",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/v1/challenges/october-running-challenge/join",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "challenges",
+                "october-running-challenge",
+                "join"
+              ],
+              "query": []
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          }
+        },
+        {
+          "name": "Leave",
+          "request": {
+            "method": "DELETE",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/v1/challenges/october-running-challenge/join",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "challenges",
+                "october-running-challenge",
+                "join"
+              ],
+              "query": []
+            }
+          }
+        },
+        {
+          "name": "Log progress",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/v1/challenges/october-running-challenge/logs",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "challenges",
+                "october-running-challenge",
+                "logs"
+              ],
+              "query": []
+            },
+            "description": "422 if you have not joined, or the challenge is not currently running.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"value\": 12,\n  \"note\": \"Morning run along the creek\",\n  \"logged_on\": \"2026-10-04\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          }
+        },
+        {
+          "name": "Update (creator)",
+          "request": {
+            "method": "PATCH",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/v1/challenges/october-running-challenge",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "challenges",
+                "october-running-challenge"
+              ],
+              "query": []
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"goal_value\": 120\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          }
+        },
+        {
+          "name": "Delete (creator)",
+          "request": {
+            "method": "DELETE",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/v1/challenges/october-running-challenge",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "challenges",
+                "october-running-challenge"
+              ],
+              "query": []
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "16 · Learn & Share — Ask Radix",
+      "description": "Phase 2, and the most useful addition in it. Post a question when you do not know who can help. Tags route the question, and relevant people can either write an answer or simply volunteer to talk — which is often the more useful of the two.",
+      "item": [
+        {
+          "name": "All questions",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/v1/questions?status=open",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "questions"
+              ],
+              "query": [
+                {
+                  "key": "status",
+                  "value": "open"
+                }
+              ]
+            }
+          }
+        },
+        {
+          "name": "Questions I could answer",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/v1/questions?for_me=1",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "questions"
+              ],
+              "query": [
+                {
+                  "key": "for_me",
+                  "value": "1"
+                }
+              ]
+            },
+            "description": "Open questions, not your own, tagged with something you listed under *can talk about* or *can help with*. This is what makes Ask Radix work without the asker knowing who to approach."
+          }
+        },
+        {
+          "name": "By tag",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/v1/questions?tag=bigquery",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "questions"
+              ],
+              "query": [
+                {
+                  "key": "tag",
+                  "value": "bigquery"
+                }
+              ]
+            }
+          }
+        },
+        {
+          "name": "Ask",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/v1/questions",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "questions"
+              ],
+              "query": []
+            },
+            "description": "Tags are created on the fly and are how the question reaches the right people.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"title\": \"Has anyone worked with BigQuery ML?\",\n  \"body\": \"Trying to decide if it is worth it for a churn model.\",\n  \"tags\": [\n    \"BigQuery\",\n    \"Data Modelling\"\n  ]\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          }
+        },
+        {
+          "name": "Get question",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/v1/questions/1",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "questions",
+                "1"
+              ],
+              "query": []
+            },
+            "description": "Includes answers and volunteers."
+          }
+        },
+        {
+          "name": "Update (asker)",
+          "request": {
+            "method": "PATCH",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/v1/questions/1",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "questions",
+                "1"
+              ],
+              "query": []
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"status\": \"closed\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          }
+        },
+        {
+          "name": "Answer it",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/v1/questions/1/answers",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "questions",
+                "1",
+                "answers"
+              ],
+              "query": []
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"body\": \"We ran it for six months \\u2014 watch for static state leaking between requests.\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          }
+        },
+        {
+          "name": "Volunteer to help",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/v1/questions/1/volunteer",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "questions",
+                "1",
+                "volunteer"
+              ],
+              "query": []
+            },
+            "description": "The \"I have done this, come talk to me\" path. 422 on your own question.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"note\": \"Done this twice, happy to jump on a call.\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          }
+        },
+        {
+          "name": "Withdraw volunteering",
+          "request": {
+            "method": "DELETE",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/v1/questions/1/volunteer",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "questions",
+                "1",
+                "volunteer"
+              ],
+              "query": []
+            }
+          }
+        },
+        {
+          "name": "Accept an answer",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/v1/question-answers/1/accept",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "question-answers",
+                "1",
+                "accept"
+              ],
+              "query": []
+            },
+            "description": "Asker only — not even an admin. Accepting marks the question answered.",
+            "body": {
+              "mode": "raw",
+              "raw": "{}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          }
+        },
+        {
+          "name": "Delete an answer",
+          "request": {
+            "method": "DELETE",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/v1/question-answers/1",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "question-answers",
+                "1"
+              ],
+              "query": []
+            },
+            "description": "Author, asker or admin."
+          }
+        },
+        {
+          "name": "Delete question (asker)",
+          "request": {
+            "method": "DELETE",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/v1/questions/1",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "questions",
+                "1"
+              ],
+              "query": []
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "17 · Learn & Share — Teach Radix",
+      "description": "Phase 2. The mirror of Ask Radix: offer an informal session and find out whether anyone wants it before committing to a date. Once `interested_count` reaches `min_interested` the offer can be scheduled, which creates a real Event and RSVPs everyone who said yes.",
+      "item": [
+        {
+          "name": "Browse offers",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/v1/teach-offers?status=open",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "teach-offers"
+              ],
+              "query": [
+                {
+                  "key": "status",
+                  "value": "open"
+                }
+              ]
+            }
+          }
+        },
+        {
+          "name": "Ready to schedule",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/v1/teach-offers?ready=1",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "teach-offers"
+              ],
+              "query": [
+                {
+                  "key": "ready",
+                  "value": "1"
+                }
+              ]
+            },
+            "description": "Open offers that have reached their interest threshold and just need a date."
+          }
+        },
+        {
+          "name": "Offer to teach",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/v1/teach-offers",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "teach-offers"
+              ],
+              "query": []
+            },
+            "description": "format: session | workshop | walkthrough. level: any | beginner | intermediate | advanced.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"title\": \"Figma for people who are not designers\",\n  \"description\": \"An hour of the basics, no prior experience needed.\",\n  \"format\": \"workshop\",\n  \"level\": \"beginner\",\n  \"topic\": \"Figma\",\n  \"duration_minutes\": 60,\n  \"min_interested\": 3,\n  \"preferred_times\": \"Weekday afternoons\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          }
+        },
+        {
+          "name": "Get offer",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/v1/teach-offers/1",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "teach-offers",
+                "1"
+              ],
+              "query": []
+            }
+          }
+        },
+        {
+          "name": "Update (owner)",
+          "request": {
+            "method": "PATCH",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/v1/teach-offers/1",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "teach-offers",
+                "1"
+              ],
+              "query": []
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"min_interested\": 2\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          }
+        },
+        {
+          "name": "I'm interested",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/v1/teach-offers/1/interest",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "teach-offers",
+                "1",
+                "interest"
+              ],
+              "query": []
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          }
+        },
+        {
+          "name": "Withdraw interest",
+          "request": {
+            "method": "DELETE",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/v1/teach-offers/1/interest",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "teach-offers",
+                "1",
+                "interest"
+              ],
+              "query": []
+            }
+          }
+        },
+        {
+          "name": "Schedule it",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/v1/teach-offers/1/schedule",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "teach-offers",
+                "1",
+                "schedule"
+              ],
+              "query": []
+            },
+            "description": "Owner only. Creates an Event with `ends_at` derived from `duration_minutes`, and RSVPs the teacher plus everyone interested. Returns the Event. 422 if already scheduled.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"starts_at\": \"2026-10-15T10:00:00Z\",\n  \"location\": \"Mumbai\",\n  \"capacity\": 20\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          }
+        },
+        {
+          "name": "Delete (owner)",
+          "request": {
+            "method": "DELETE",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/v1/teach-offers/1",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "teach-offers",
+                "1"
+              ],
+              "query": []
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "18 · Do Together — Open Invites",
+      "description": "Phase 2. \"Anyone interested?\" with no date and no logistics. It becomes a real Event only once enough people have said yes.",
+      "item": [
+        {
+          "name": "Open invites",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/v1/open-invites",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "open-invites"
+              ],
+              "query": []
+            },
+            "description": "Sorted by interest. Defaults to status=open."
+          }
+        },
+        {
+          "name": "Mine (posted or interested)",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/v1/open-invites?mine=1",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "open-invites"
+              ],
+              "query": [
+                {
+                  "key": "mine",
+                  "value": "1"
+                }
+              ]
+            }
+          }
+        },
+        {
+          "name": "By category",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/v1/open-invites?category=outdoors",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "open-invites"
+              ],
+              "query": [
+                {
+                  "key": "category",
+                  "value": "outdoors"
+                }
+              ]
+            }
+          }
+        },
+        {
+          "name": "Float an idea",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/v1/open-invites",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "open-invites"
+              ],
+              "query": []
+            },
+            "description": "Posting counts as being interested, so the count starts at 1.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"title\": \"Anyone up for a Sahyadri trek?\",\n  \"description\": \"Nothing planned, just seeing who is keen.\",\n  \"category\": \"outdoors\",\n  \"rough_timing\": \"Some weekend next month\",\n  \"location\": \"Pune\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          }
+        },
+        {
+          "name": "Get invite",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/v1/open-invites/1",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "open-invites",
+                "1"
+              ],
+              "query": []
+            }
+          }
+        },
+        {
+          "name": "Update (author)",
+          "request": {
+            "method": "PATCH",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/v1/open-invites/1",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "open-invites",
+                "1"
+              ],
+              "query": []
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"rough_timing\": \"First weekend of November\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          }
+        },
+        {
+          "name": "I'm interested",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/v1/open-invites/1/interest",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "open-invites",
+                "1",
+                "interest"
+              ],
+              "query": []
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          }
+        },
+        {
+          "name": "Withdraw interest",
+          "request": {
+            "method": "DELETE",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/v1/open-invites/1/interest",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "open-invites",
+                "1",
+                "interest"
+              ],
+              "query": []
+            }
+          }
+        },
+        {
+          "name": "Turn into an event",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/v1/open-invites/1/convert-to-event",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "open-invites",
+                "1",
+                "convert-to-event"
+              ],
+              "query": []
+            },
+            "description": "Author only. Creates an Event in the same category and RSVPs everyone who was interested. Returns the Event. 422 if already converted.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"starts_at\": \"2026-10-24T06:00:00Z\",\n  \"location\": \"Pune\",\n  \"capacity\": 12\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          }
+        },
+        {
+          "name": "Close it (author)",
+          "request": {
+            "method": "PATCH",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/v1/open-invites/1",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "open-invites",
+                "1"
+              ],
+              "query": []
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"status\": \"closed\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          }
+        },
+        {
+          "name": "Delete (author)",
+          "request": {
+            "method": "DELETE",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/v1/open-invites/1",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "open-invites",
                 "1"
               ],
               "query": []

@@ -1,0 +1,4 @@
+# Railway builds this repo with Nixpacks (no Dockerfile). The PHP provider is
+# auto-detected from composer.json; we only override how the app is started.
+[start]
+cmd = "sh ./scripts/start.sh"

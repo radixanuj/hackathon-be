@@ -5,18 +5,18 @@ Do things together. Know the people behind the work.*
 
 Laravel 12 · PHP 8.2 · Sanctum token auth · SQLite locally, Postgres in Docker.
 
-## Phase 1 scope
+## Scope
 
-| Pillar | Shipped |
-|---|---|
-| People | Profiles + New Joiner Quest |
-| Connect | Blind Meetups + Mentoring |
-| Communities | Interest Groups |
-| Learn & Share | Recommendations + AMA |
-| Do Together | Events |
-| Celebrate & Discover | Beyond-work Stories |
+| Pillar | Phase 1 — Create Connections | Phase 2 — Make Connection Easier |
+|---|---|---|
+| People | Profiles + New Joiner Quest | Who Should I Meet? |
+| Connect | Blind Meetups + Mentoring | Cross-location Buddy, Office Hours, Coffee/Lunch Invites |
+| Communities | Interest Groups | Challenges |
+| Learn & Share | Recommendations + AMA | Ask Radix, Teach Radix |
+| Do Together | Events | Open Invites |
+| Celebrate & Discover | Beyond-work Stories | Stories discoverable through interests |
 
-Phase 2 and 3 features are deliberately not built — see the bottom of [`docs/API.md`](docs/API.md).
+Phase 3 is deliberately not built — see the bottom of [`docs/API.md`](docs/API.md).
 
 ## Run it
 
@@ -31,12 +31,12 @@ php artisan serve                    # http://localhost:8000
 Or with Docker (Postgres): `docker compose up --build` → http://localhost:8080
 
 ```bash
-php artisan test                     # 38 tests
+php artisan test                     # 86 tests
 ```
 
 ## For the frontend
 
-- **[`docs/radix-connect.postman_collection.json`](docs/radix-connect.postman_collection.json)** — all 70
+- **[`docs/radix-connect.postman_collection.json`](docs/radix-connect.postman_collection.json)** — all 129
   endpoints, runnable. Set `base_url`, run *Auth → Demo login*, and the token is captured for every other
   request automatically.
 - **[`docs/API.md`](docs/API.md)** — endpoint reference, filters and payload conventions.
@@ -55,11 +55,13 @@ Point the frontend at the API with `CORS_ALLOWED_ORIGINS` in `.env` (defaults to
 ## Layout
 
 ```
-app/Models/                  15 domain models
-app/Http/Controllers/Api/    12 controllers, one per pillar area
+app/Models/                  36 domain models
+app/Http/Controllers/Api/    21 controllers, one per pillar area
 app/Http/Resources/          JSON shapes — every response wraps in `data`
 app/Services/
   QuestBuilder              New Joiner Quest: five people, crossing teams, each with a reason
   BlindMeetupMatcher        Pairs 6+ years with under 6, preferring different team and location
+  ConnectionSuggester       Who Should I Meet?: shared interests, complementary knowledge, no prior contact
+  BuddyMatcher              Cross-location buddies; a different office is a hard requirement
 database/seeders/            A believable Radix for demoing every pillar
 ```

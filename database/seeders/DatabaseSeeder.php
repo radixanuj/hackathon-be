@@ -3,15 +3,23 @@
 namespace Database\Seeders;
 
 use App\Models\Ama;
+use App\Models\BuddySignup;
+use App\Models\Challenge;
+use App\Models\CoffeeInvite;
 use App\Models\Event;
 use App\Models\InterestGroup;
 use App\Models\MeetupRound;
+use App\Models\OfficeHourSlot;
+use App\Models\OpenInvite;
+use App\Models\RadixQuestion;
 use App\Models\Recommendation;
 use App\Models\SessionRequest;
 use App\Models\Story;
 use App\Models\Tag;
+use App\Models\TeachOffer;
 use App\Models\User;
 use App\Services\BlindMeetupMatcher;
+use App\Services\BuddyMatcher;
 use App\Services\QuestBuilder;
 use Database\Factories\UserFactory;
 use Illuminate\Database\Seeder;
@@ -70,6 +78,255 @@ class DatabaseSeeder extends Seeder
         $this->seedRecommendations($everyone);
         $this->seedAmasAndStories($everyone);
         $this->seedEvents($everyone);
+
+        // --- Phase 2 ---
+        $this->seedBuddies($everyone);
+        $this->seedOfficeHours($everyone);
+        $this->seedCoffeeInvites($everyone);
+        $this->seedChallenges($everyone, $interests);
+        $this->seedAskRadix($everyone, $skills);
+        $this->seedTeachOffers($everyone, $skills);
+        $this->seedOpenInvites($everyone);
+        $this->tagStories($interests);
+    }
+
+    protected function seedBuddies($everyone): void
+    {
+        // Enough people from different offices that the matcher has real choices.
+        $pool = $everyone->filter(fn (User $u) => $u->location)->shuffle()->take(10);
+
+        foreach ($pool as $user) {
+            BuddySignup::updateOrCreate(['user_id' => $user->id], ['status' => 'waiting']);
+        }
+
+        $matcher = app(BuddyMatcher::class);
+
+        foreach ($pool as $user) {
+            $matcher->matchFor($user);
+        }
+    }
+
+    protected function seedOfficeHours($everyone): void
+    {
+        $hosts = $everyone->where('open_to_mentoring', true)->shuffle()->take(6);
+
+        foreach ($hosts as $host) {
+            foreach ([3, 10] as $daysOut) {
+                $slot = OfficeHourSlot::create([
+                    'host_id' => $host->id,
+                    'title' => 'Office hours with '.explode(' ', $host->name)[0],
+                    'description' => 'Anything you like — work, career, or just a hello.',
+                    'starts_at' => now()->addDays($daysOut)->setTime(rand(10, 16), 0),
+                    'duration_minutes' => 30,
+                    'capacity' => rand(1, 3),
+                    'location' => $host->location,
+                ]);
+
+                $everyone->whereNotIn('id', [$host->id])->random(rand(0, 2))
+                    ->each(fn (User $u) => $slot->bookings()->firstOrCreate(
+                        ['user_id' => $u->id],
+                        ['topic' => fake()->sentence(5)],
+                    ));
+
+                $slot->syncBookingsCount();
+            }
+        }
+    }
+
+    protected function seedCoffeeInvites($everyone): void
+    {
+        foreach (['coffee', 'lunch', 'walk', 'coffee', 'lunch'] as $index => $kind) {
+            $host = $everyone->random();
+
+            $invite = CoffeeInvite::create([
+                'host_id' => $host->id,
+                'kind' => $kind,
+                'note' => fake()->randomElement([
+                    'Free after standup, anyone want to join?',
+                    'Trying the new place downstairs.',
+                    'Need to walk off a long morning.',
+                    'Happy to talk shop or not at all.',
+                ]),
+                'starts_at' => now()->addDays($index + 1)->setTime(rand(9, 15), 30),
+                'location' => $host->location,
+                'capacity' => rand(2, 4),
+            ]);
+
+            $everyone->whereNotIn('id', [$host->id])->random(rand(0, 2))
+                ->each(fn (User $u) => $invite->joins()->firstOrCreate(['user_id' => $u->id]));
+
+            $invite->syncJoinsCount();
+        }
+    }
+
+    protected function seedChallenges($everyone, $interests): void
+    {
+        $challenges = [
+            ['October Running Challenge', 'running', 'km', 100, 'Log every kilometre, treadmill counts.'],
+            ['Read Three Books', 'reading', 'books', 3, 'Any three books before the month is out.'],
+            ['Photo a Day', 'photography', 'photos', 30, 'One photo a day, no filters required.'],
+            ['Ten Thousand Steps', 'sports', 'days', 20, 'Twenty days of hitting ten thousand steps.'],
+        ];
+
+        foreach ($challenges as [$title, $category, $unit, $goal, $description]) {
+            $creator = $everyone->random();
+
+            $challenge = Challenge::create([
+                'created_by' => $creator->id,
+                'title' => $title,
+                'slug' => Str::slug($title),
+                'description' => $description,
+                'category' => $category,
+                'unit' => $unit,
+                'goal_value' => $goal,
+                'starts_on' => now()->subDays(10)->toDateString(),
+                'ends_on' => now()->addDays(20)->toDateString(),
+            ]);
+
+            $participants = $everyone->shuffle()->take(rand(5, 12))->push($creator)->unique('id');
+
+            foreach ($participants as $user) {
+                $participant = $challenge->participants()->firstOrCreate(['user_id' => $user->id]);
+
+                foreach (range(1, rand(0, 5)) as $n) {
+                    $participant->logs()->create([
+                        'value' => rand(1, max(2, (int) ($goal / 4))),
+                        'note' => fake()->boolean(40) ? fake()->sentence(4) : null,
+                        'logged_on' => now()->subDays(rand(0, 9))->toDateString(),
+                    ]);
+                }
+
+                $participant->syncTotal();
+            }
+
+            $challenge->syncParticipantsCount();
+        }
+    }
+
+    protected function seedAskRadix($everyone, $skills): void
+    {
+        $questions = [
+            ['Has anyone worked with BigQuery ML?', 'Trying to decide if it is worth it for a churn model.', ['BigQuery', 'Data Modelling']],
+            ['Anyone travelled to Japan recently?', 'Two weeks in spring, mostly trains. Any advice welcome.', ['Travel']],
+            ['Looking for advice on managing someone for the first time', 'Starting next month and slightly terrified.', ['Managing First Time', 'Hiring']],
+            ['Best way to run a customer interview?', 'Never done one properly and I have five booked.', ['Customer Interviews']],
+            ['Anyone set up Kubernetes autoscaling here?', 'Specifically the cost side of it.', ['Kubernetes']],
+        ];
+
+        foreach ($questions as [$title, $body, $tagNames]) {
+            $asker = $everyone->random();
+
+            $question = RadixQuestion::create([
+                'user_id' => $asker->id,
+                'title' => $title,
+                'body' => $body,
+            ]);
+
+            $question->tags()->sync(
+                collect($tagNames)->map(fn ($n) => Tag::findOrCreateByName($n, 'skill')->id)->all()
+            );
+
+            $helpers = $everyone->whereNotIn('id', [$asker->id])->shuffle()->take(rand(1, 3));
+
+            foreach ($helpers as $index => $helper) {
+                // Some people write an answer, others just offer to talk.
+                if ($index % 2 === 0) {
+                    $question->answers()->create([
+                        'user_id' => $helper->id,
+                        'body' => fake()->paragraph(3),
+                    ]);
+                } else {
+                    $question->volunteers()->create([
+                        'user_id' => $helper->id,
+                        'note' => 'Happy to jump on a call about this.',
+                    ]);
+                }
+            }
+
+            $question->syncCounts();
+        }
+    }
+
+    protected function seedTeachOffers($everyone, $skills): void
+    {
+        $offers = [
+            ['Intro to BigQuery for non-analysts', 'BigQuery', 'session', 'beginner'],
+            ['How we actually price domains', 'Domain Strategy', 'walkthrough', 'any'],
+            ['Figma for people who are not designers', 'Figma', 'workshop', 'beginner'],
+            ['Running a useful retrospective', 'Public Speaking', 'session', 'any'],
+        ];
+
+        foreach ($offers as [$title, $topic, $format, $level]) {
+            $teacher = $everyone->random();
+
+            $offer = TeachOffer::create([
+                'user_id' => $teacher->id,
+                'tag_id' => Tag::findOrCreateByName($topic, 'skill')->id,
+                'title' => $title,
+                'description' => fake()->paragraph(2),
+                'format' => $format,
+                'level' => $level,
+                'duration_minutes' => 45,
+                'min_interested' => 3,
+                'preferred_times' => 'Weekday afternoons',
+            ]);
+
+            $everyone->whereNotIn('id', [$teacher->id])->random(rand(1, 6))
+                ->each(fn (User $u) => $offer->interests()->firstOrCreate(['user_id' => $u->id]));
+
+            $offer->syncInterestedCount();
+        }
+    }
+
+    protected function seedOpenInvites($everyone): void
+    {
+        $invites = [
+            ['Anyone up for a Sahyadri trek?', 'outdoors', 'Some weekend next month'],
+            ['Badminton, weekday evenings?', 'sports', 'Whenever we can get a court'],
+            ['Board game night at someone\'s place', 'games', 'A Friday, eventually'],
+            ['Photo walk around the old city', 'culture', 'An early Sunday'],
+            ['Anyone want to do a book swap?', 'other', 'No rush'],
+        ];
+
+        foreach ($invites as [$title, $category, $timing]) {
+            $author = $everyone->random();
+
+            $invite = OpenInvite::create([
+                'user_id' => $author->id,
+                'title' => $title,
+                'description' => fake()->sentence(12),
+                'category' => $category,
+                'rough_timing' => $timing,
+            ]);
+
+            $invite->interests()->firstOrCreate(['user_id' => $author->id]);
+
+            $everyone->whereNotIn('id', [$author->id])->random(rand(1, 7))
+                ->each(fn (User $u) => $invite->interests()->firstOrCreate(['user_id' => $u->id]));
+
+            $invite->syncInterestedCount();
+        }
+    }
+
+    /** Phase 2: tag existing stories so interest-led discovery has something to find. */
+    protected function tagStories($interests): void
+    {
+        $map = [
+            'sport' => ['Running', 'Cricket'],
+            'travel' => ['Travel', 'Trekking', 'Photography'],
+            'learning' => ['AI', 'Books'],
+            'making' => ['AI', 'Photography'],
+            'milestone' => ['Books'],
+            'other' => ['Music'],
+        ];
+
+        Story::all()->each(function (Story $story) use ($map) {
+            $names = $map[$story->category] ?? ['Books'];
+
+            $story->tags()->sync(
+                collect($names)->map(fn ($n) => Tag::findOrCreateByName($n, 'interest')->id)->all()
+            );
+        });
     }
 
     protected function attach(User $user, $tags, string $kind): void

@@ -4,6 +4,8 @@ namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
 use App\Models\Ama;
+use App\Models\Challenge;
+use App\Models\CoffeeInvite;
 use App\Models\Event;
 use App\Models\EventRsvp;
 use App\Models\InterestGroup;
@@ -12,6 +14,7 @@ use App\Models\SessionRequest;
 use App\Models\Story;
 use App\Models\StoryReaction;
 use App\Models\Tag;
+use App\Models\TeachOffer;
 use App\Models\User;
 use Illuminate\Http\JsonResponse;
 
@@ -36,6 +39,14 @@ class MetaController extends Controller
                 'rsvp_statuses' => EventRsvp::STATUSES,
                 'story_categories' => Story::CATEGORIES,
                 'story_reactions' => StoryReaction::REACTIONS,
+
+                // Phase 2
+                'challenge_categories' => Challenge::CATEGORIES,
+                'coffee_invite_kinds' => CoffeeInvite::KINDS,
+                'teach_formats' => TeachOffer::FORMATS,
+                'teach_levels' => TeachOffer::LEVELS,
+                'question_statuses' => ['open', 'answered', 'closed'],
+                'open_invite_categories' => Event::CATEGORIES,
             ],
         ]);
     }
